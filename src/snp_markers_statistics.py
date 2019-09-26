@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-import sys
-sys.path.append('/home/ariel/clients/my-tools/src/my_plot_tools')
+#import sys
+#sys.path.append('/home/ariel/clients/my-tools/src/my_plot_tools')
 #import plot_tools
 
 #def show_allele_frequency(df, my_title):
