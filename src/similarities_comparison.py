@@ -133,6 +133,8 @@ def merge_list_elements(my_list):
 
 
 def compare_dataframes_of_similarities(df1, df2):
+    assert set(['chr','start', 'end']) == set(df1.columns), df1.columns
+    assert set(['chr','start', 'end']) == set(df2.columns), df2.columns
     all_chr = df1['chr'].append(df2['chr']).unique()
     only_in_1_len = 0
     only_in_2_len = 0
@@ -176,6 +178,34 @@ def compute_similarity_match_for_multiple_sampels(samples, raw_sim, snp_df , jar
             marker_sim_unique_len += b
             common_sim_len += c
     return [hap_sim_unique_len, marker_sim_unique_len, common_sim_len]
+
+
+def get_subset_of_similarities(hap_sim1, sample1, sample2):
+    I = ((hap_sim1['s1'] == sample1) & (hap_sim1['s2'] == sample2)) | ((hap_sim1['s2'] == sample1) & (hap_sim1['s1'] == sample2))
+    df1 = hap_sim1.loc[I,['chr', 'start', 'end']]
+    return df1.astype(int).drop_duplicates()
+
+
+def compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samples):
+    samples_num = len(samples)
+    hap_sim1_uniq_len = 0
+    hap_sim2_uniq_len = 0
+    shared_len = 0
+    for i in range(samples_num):
+        for j in range(i + 1, samples_num):
+            sample1 = samples[i]
+            sample2 = samples[j]
+            df1 = get_subset_of_similarities(hap_sim1, sample1, sample2)
+            df2 = get_subset_of_similarities(hap_sim2, sample1, sample2)
+            [only_in_1_len, only_in_2_len, shared_length] = compare_dataframes_of_similarities(
+                df1, df2)
+            hap_sim1_uniq_len += only_in_1_len
+            hap_sim2_uniq_len += only_in_2_len
+            shared_len += shared_length
+    return [hap_sim1_uniq_len, hap_sim2_uniq_len, shared_len]
+
+
+
 
 
 
