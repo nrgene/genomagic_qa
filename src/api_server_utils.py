@@ -50,7 +50,11 @@ def get_raw_similarities_between_multiple_sampels(api_server, data_version, samp
     df = pd.DataFrame(data)
     df.columns = ["s1", "s2", "chr", "start", "end", "score", "ibd"]
     ind = (df["ibd"] == "true") & (df["start"] != df["end"])
-    return df.loc[ind,['s1','s2','chr', 'start', 'end']]
+    hap_sim = df.loc[ind,['s1','s2','chr', 'start', 'end']]
+    hap_sim['chr'] = hap_sim.chr.astype(int)
+    hap_sim['start'] = hap_sim.start.astype(int)
+    hap_sim['end'] = hap_sim.end.astype(int)
+    return hap_sim
 
     # df = df.transpose()
     #df.columns = ["s1", "s2", "chr", "start", "end", "score", "ibd"]
