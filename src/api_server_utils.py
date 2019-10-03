@@ -41,8 +41,9 @@ def get_raw_similarities_between_two_sampels(api_server, data_version, sample1, 
 
 
 def get_raw_similarities_between_multiple_sampels(api_server, data_version, samples, locations):
-    url = "http://{}:8080/genomagic-api/v1/sync-job/HAPLOTYPES_SIMILARITY_RAW.tsv?dataVersion={}&samples={}" \
+    url = "http://{}/genomagic-api/v1/sync-job/HAPLOTYPES_SIMILARITY_RAW.tsv?dataVersion={}&samples={}" \
           "&locations={}".format(api_server, data_version, ",".join(samples), locations)
+    print(url)
     my_data = api_call_request(url)
     lines = my_data[2:-2].split("\n")
     data = [x.split('\t') for x in lines]
