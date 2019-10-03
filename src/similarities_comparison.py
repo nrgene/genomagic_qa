@@ -28,7 +28,7 @@ def handle_partially_overlap(first_start, first_end, second_start, second_end, l
 # if a contains b, then advance second, and set a_start to be the end of b
 def handle_when_a_contains_b(a_start, a_end, b_start, b_end, list_b):
     assert a_start <= b_start
-    assert a_end > b_end
+    assert a_end >= b_end, "a ({}-{}) contains b({}-{}) ??".format(a_start, a_end, b_start, b_end)    
     overlap_len = b_end - b_start
     unique_to_a = b_start - a_start
     assert unique_to_a >= 0
