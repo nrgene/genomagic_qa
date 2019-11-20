@@ -11,12 +11,13 @@ def parse_vcf_line(line):
 
 
 def get_first_non_header_line(my_file):
-    first_line='#'
-    last_header_line = ''
+    first_line = my_file.readline().rstrip()
+    assert first_line[0] == '#'
+    header_lines = []
     while first_line[0] == '#':
-        last_header_line = first_line
+        header_lines.append(first_line)
         first_line = my_file.readline().rstrip()
-    return [first_line, last_header_line]
+    return [first_line, header_lines]
 
 
 def advance_one_file_and_get_line(progeny_file):

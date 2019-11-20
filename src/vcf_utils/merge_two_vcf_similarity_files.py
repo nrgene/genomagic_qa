@@ -1,6 +1,7 @@
 import sys
 import vcf_pair_iterator
 vcf_info_columns_num = 9
+vcf_header_files_num = 7
 
 def get_index_map(samples1, samples2):
     n1 = len(samples1)
@@ -31,7 +32,9 @@ def get_line_data(prev_data, index_from_progeny_to_parents, target_data_line, se
     curr_str=''
     nahap_ind = target_data_line[4].count(',')
     for g in prev_data:
-        index_in_parents_vcf = index_from_progeny_to_parents[g.split('|')[0]]
+        curr_genotype = g.split('|')[0]
+        assert curr_genotype in index_from_progeny_to_parents, '{} is not in dict {}'.format(curr_genotype, index_from_progeny_to_parents)
+        index_in_parents_vcf = index_from_progeny_to_parents[curr_genotype]
         tmp_str = get_curr_value(index_in_parents_vcf, target_data_line, nahap_ind, seg_len)
         curr_str = '{}\t{}'.format(curr_str, tmp_str)
     return curr_str
@@ -58,8 +61,12 @@ first_file = open(progeny_vcf_file, 'r')
 second_file = open(parents_vcf_file, 'r')
 [line1, header1] = vcf_pair_iterator.get_first_non_header_line(first_file)
 [line2, header2] = vcf_pair_iterator.get_first_non_header_line(second_file)
-samples1 = header1.split('\t')[vcf_info_columns_num:]
-samples2 = header2.split('\t')[vcf_info_columns_num:]
+samples1 = header1[-1].split('\t')[vcf_info_columns_num:]
+samples2 = header2[-1].split('\t')[vcf_info_columns_num:]
+header2[1] = '##created manually without the API'
+for i in range(vcf_header_files_num-1):
+    print(header2[i])
+print(header1[vcf_header_files_num-1])
 index_from_progeny_to_parents = get_index_map(samples1, samples2)
 vcf_pair_iterator.iterate_two_vcf(first_file, second_file, line1, line2, my_simple_func, index_from_progeny_to_parents)
 first_file.close()
