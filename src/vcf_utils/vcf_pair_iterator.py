@@ -12,9 +12,11 @@ def parse_vcf_line(line):
 
 def get_first_non_header_line(my_file):
     first_line='#'
+    last_header_line = ''
     while first_line[0] == '#':
+        last_header_line = first_line
         first_line = my_file.readline().rstrip()
-    return first_line
+    return [first_line, last_header_line]
 
 
 def advance_one_file_and_get_line(progeny_file):
@@ -23,7 +25,7 @@ def advance_one_file_and_get_line(progeny_file):
     return line1
 
 
-def iterate_two_vcf(first_file, second_file, line1, line2, vcf_lines_intersection_method):
+def iterate_two_vcf(first_file, second_file, line1, line2, vcf_lines_intersection_method, index_from_progeny_to_parents):
 
     while line1 or line2:
         assert line1
@@ -39,7 +41,7 @@ def iterate_two_vcf(first_file, second_file, line1, line2, vcf_lines_intersectio
             assert chr1 == chr2
             assert start1 < end2
             assert start2 < end1
-            vcf_lines_intersection_method(line1, line2)
+            vcf_lines_intersection_method(line1, line2, index_from_progeny_to_parents)
             if end1 == end2:
                 line1 = first_file.readline().rstrip()
                 line2 = second_file.readline().rstrip()
