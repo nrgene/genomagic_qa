@@ -1,22 +1,39 @@
 #!/usr/bin/python
 import sys
-simulationFile=sys.argv[1] 
+
+def parse_start_end(parts):
+    start1 = int(parts[1])
+    assert parts[7][:7] == 'HS;END='
+    end1 = int(parts[7][7:])
+    return [start1, end1]
+
+def read_last_header_fields(input_vcf):
+    line = input_vcf.readline().rstrip()
+    while line[0:6] != "#CHROM":
+        output_vcf.write('{}\n'.format(line))
+        line = input_vcf.readline().rstrip()
+    parts = line.split('\t')
+    return parts
+
+
+
+simulationFile=sys.argv[1]
 vcfInputFile=sys.argv[2]
 vcfOutoutFile=sys.argv[3]
 vcfInfoColumnsNum=9
 vcfHeaderLinesNum=6
 
-input_sim=open(simulationFile,'r')
+p
 input_vcf=open(vcfInputFile,'r')
-output_vcf=open(vcfOutoutFile,'w')
+parts = read_last_header_fields(input_vcf)
+vcf_samples=parts[vcfInfoColumnsNum:]
+sourceSamplesNum=len(vcf_samples)
 
+input_sim=open(simulationFile,'r')
+parts = read_last_header_fields(input_sim)
+sim_samples=parts[vcfInfoColumnsNum:]
+sim_samples_num=len(sim_samples)
 
-line=input_vcf.readline().rstrip()
-while line[0:6]!="#CHROM":
-    output_vcf.write('{}\n'.format(line))
-    parts=line.split('\t')
-    line=input_vcf.readline().rstrip()
-parts=line.split('\t')
 vcf_samples=parts[vcfInfoColumnsNum:]
 sourceSamplesNum=len(vcf_samples)
 
@@ -26,22 +43,17 @@ while sim_line[0:vcfHeaderLinesNum]!="#CHROM":
     sim_line=input_sim.readline().rstrip()
 output_vcf.write('{}\n'.format(sim_line))
 parts=sim_line.split('\t')
-sim_samples=parts[vcfInfoColumnsNum:]
-sim_samples_num=len(sim_samples)
 
 
+output_vcf=open(vcfOutoutFile,'w')
 
 line1=input_sim.readline().rstrip()
 line2=input_vcf.readline().rstrip()
 while line1 and line2:
     parts1=line1.split('\t')
     parts2=line2.split('\t')
-    start1=int(parts1[1])
-    start2=int(parts2[1])
-    assert parts1[7][:7]=='HS;END='
-    assert parts2[7][:7]=='HS;END='
-    end1=int(parts1[7][7:])
-    end2=int(parts2[7][7:])
+    [start1, end1] = parse_start_end(parts1)
+    [start2, end2] = parse_start_end(parts2)
     curr_start=max(start1,start2)
     curr_end=min(end1,end2)
     curr_len=curr_end-curr_start+1
