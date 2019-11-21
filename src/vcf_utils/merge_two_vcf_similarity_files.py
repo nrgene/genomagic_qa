@@ -42,15 +42,17 @@ def get_line_data(prev_data, index_from_progeny_to_parents, target_data_line, se
 
 def my_simple_func(line1, line2, index_from_progeny_to_parents):
     [chr1, start1, end1] = vcf_pair_iterator.parse_vcf_line(line1)
-    [chr2, start2, end2] = vcf_pair_iterator.parse_vcf_line(line1)
+    [chr2, start2, end2] = vcf_pair_iterator.parse_vcf_line(line2)
     assert chr1 == chr2
     assert start1 < end2
     assert start2 < end1
     my_start = max(start1, start2)
     my_end = min(end1, end2)
+    #print('new line pos1=({} {}) pos2=({} {} my_pos=({} {}))'.format( start1, end1, start2, end2 , my_start, my_end))
     parts1 = line1.split('\t')
     parts2 = line2.split('\t')
     info_part = get_line_info(chr1, my_start, my_end, parts2[4])
+    #print(info_part)
     data_part = get_line_data(parts1[vcf_info_columns_num:], index_from_progeny_to_parents, parts2, my_end - my_start + 1)
     print('{}{}'.format(info_part, data_part))
 
