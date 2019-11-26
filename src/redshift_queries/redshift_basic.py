@@ -11,7 +11,9 @@ def createConnectionCursor(host):
     cur = conn.cursor()
     return cur
 
+
 def get_all_results(host, query):
+    assert query[-1]==';'
     cur = createConnectionCursor(host)
     cur.execute(query)
     rows = cur.fetchall()
@@ -19,13 +21,23 @@ def get_all_results(host, query):
     return rows
 
 
-def get_table_name(host, data_version, table_name):
-    query = 'select table_name from {}_data_version where table_type = \'{}\';'.format(data_version, table_name)
-    cur = createConnectionCursor(host)
-    cur.execute(query)
-    row = cur.fetchone()
-    cur.close()
-    return row
+def get_table_name(host, data_version, table_type):
+    query = 'SELECT table_name FROM {}_data_version WHERE table_type = \'{}\';'.format(data_version, table_type)
+    rows = get_all_results(host, query)
+    assert len(rows) == 1
+    row = rows[0]
+    assert len(row) == 1
+    return row[0]
+
+
+def simple_grouping(host, table_name, groupby_field):
+    query = 'SELECT COUNT(*),{} FROM {} GROUP BY {};'.format(groupby_field, table_name, groupby_field)
+    return get_all_results(host, query)
+
+
+
+
+
 
 
 
