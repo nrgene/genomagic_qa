@@ -128,6 +128,7 @@ def hist_count(host, data_version):
     height = df['Count']
     bars = df['Score']
     y_pos = np.arange(len(bars))
+    plt.figure()
     plt.bar(y_pos, height)
     plt.xticks(y_pos, bars)
     plt.show()
@@ -138,6 +139,7 @@ def hist_count2(host, data_version):
     score_len_query = 'SELECT AVG(end_position-start_position), ROUND(similarity_score,2) as sc from {} GROUP BY sc;'.format(similarity_table)
     rows = get_all_results(host, score_len_query)
     df = pd.DataFrame.from_records(rows, columns =['mean len', 'score']).sort_values(by=['score'])
+    plt.figure()
     plt.scatter(df['score'], df['mean len'])
     plt.title('score vs len')
     plt.xlabel('score')
