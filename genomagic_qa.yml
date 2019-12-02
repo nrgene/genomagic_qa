@@ -1,0 +1,12 @@
+name: genomagic_qa
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - jupyterlab
+  - python=3.7
+  - scipy
+  - pandas
+  - numpy
+  - matplotlib
+  - seaborn
