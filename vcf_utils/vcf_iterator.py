@@ -17,11 +17,12 @@ class VcfIterator:
         [self.columns_header, self.next_line] = VcfIterator.get_last_header_and_first_non_header(self.vcf_file)
 
     def get_next_line(self):
-        assert self.has_next
+        assert self.has_next_line
         curr_line = self.next_line
         self.next_line = self.vcf_file.readline().rstrip()
         if not self.next_line:
             self.has_next_line = False
+            self.vcf_file.close()
         return curr_line
 
     def has_next(self):
