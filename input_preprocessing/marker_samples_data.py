@@ -18,8 +18,8 @@ def return_tsv_line(sample_name, marker_id, alleles, flag):
         assert flag == 3, flag
         status1 = 1
         status2 = 1
-    line1 = '{}\t{}\t{}\t{}\n'.format(sample_name, marker_id, alleles[0], status1)
-    line2 = '{}\t{}\t{}\t{}\n'.format(sample_name, marker_id, alleles[1], status2)
+    line1 = '{}\t{}\t{}\t{}\n'.format(sample_name, marker_id, status1, alleles[0])
+    line2 = '{}\t{}\t{}\t{}\n'.format(sample_name, marker_id, status2, alleles[1])
     return '{}{}'.format(line1, line2)
 
 
@@ -54,7 +54,7 @@ def write_tsv_file(input_file, output_file, genotype_to_flag, marker_data_from_v
     headers = vct_ite.get_headers()
     headers_num = len(headers)
     f = open(output_file, "w")
-    f.write('sample_id\tmarker_id\tallele_seq\tstatus\n')
+    f.write('sample_id\tmarker_id\tstatus\tallele_seq\n')
     while vct_ite.has_next():
         curr_line = vct_ite.get_next_line_splitted()
         assert len(curr_line) == headers_num, curr_line
