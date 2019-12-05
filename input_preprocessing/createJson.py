@@ -41,7 +41,7 @@ def create_population_string(pedigreeFileId, parents_list, progeny_files_list):
 
 
 def get_full_json_str(prev_dv, new_dv, pop_str):
-    dv_str = "\"sourceDataVersion\":\"{}\",\n\"sourceDataVersion\":\"{}\",".format(prev_dv, new_dv)
+    dv_str = "\"sourceDataVersion\":\"{}\",\n\"targetDataVersion\":\"{}\",".format(prev_dv, new_dv)
     return "{}\n{}\n{}\n{}".format("{", dv_str, pop_str, "}")
 
 
