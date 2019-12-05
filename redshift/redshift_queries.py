@@ -167,14 +167,46 @@ def get_hap_sim_of_hap_samples_sub_talble_string(host, data_version):
     return '{},\n{},\n{}'.format(arg_wgs_sub_table, hap_sim_sample1_wgs, hap_sim_sample2_wgs)
 
 
-def get_similarity(host, data_version, min_score):
+def get_median_length_of_hap_similarity(host, data_version, min_score):
     temp_tables = get_hap_sim_of_hap_samples_sub_talble_string(host, data_version)
     query = 'WITH {}\nSELECT MEDIAN(len) OVER () as MEDIAN FROM hap_sim2 WHERE similarity_score >= {} limit 1;'.format(temp_tables,min_score)
     a = get_all_results(host, query)
     return int(a[0][0])
 
 
-host = 'rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
-data_version = 'public_soy_v2_03'
-a = get_similarity(host, data_version, 0.9)
-print(a)
+def get_average_length_of_hap_similarity(host, data_version, min_score):
+    temp_tables = get_hap_sim_of_hap_samples_sub_talble_string(host, data_version)
+    query = 'WITH {}\nselect AVG(len) from hap_sim2 where similarity_score >= {};'.format(temp_tables,min_score)
+    a = get_all_results(host, query)
+    return int(a[0][0])
+
+
+def len_histogram(host, data_version):
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    sim_query = 'SELECT COUNT(*), ROUND(log(end_position-start_position),1) as sc from {} GROUP BY sc ORDER BY sc;'.format(similarity_table)
+    rows = get_all_results(host, sim_query)
+    df = pd.DataFrame.from_records(rows, columns=['Count', 'Length']).sort_values(by=['Length'])
+    height = df['Count']
+    bars = df['Length']
+    y_pos = np.arange(len(bars))
+    plt.figure()
+    plt.bar(y_pos, height)
+    plt.xticks(y_pos, bars)
+    plt.show()
+
+
+def total_similarity(host, data_version):
+    out_name = '{}/similarity_length.csv'.format(os.getcwd())
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    sql_query = "SELECT SUM(end_position-start_position) AS len , sample1, sample2 FROM {} where identical_by_state='t' group by sample1, sample2;".format(similarity_table)
+    rows = get_all_results(host, sql_query)
+    df = pd.DataFrame.from_records(rows, columns=['len','sample1','sample2'])
+    df.to_csv(out_name, index=False)
+    return df['len'].mean()
+
+
+
+
+#len_histogram(host, data_version)
+#a = get_average_length_of_hap_similarity(host, data_version, 0)
+#print(a)
