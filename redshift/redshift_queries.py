@@ -147,11 +147,34 @@ def hist_count2(host, data_version):
     plt.show()
 
 
+def get_inner_join_str (table1, table2, field1, field2):
+    return '{} INNER JOIN {} ON {}.{}={}.{}'.format(table1, table2, table1, field1, table2, field2)
 
 
+def get_hap_sim_of_hap_samples_sub_talble_string(host, data_version):
+    """
+    This is a function that returns the haplotype similarity , filtered on wgs/arg/gbs samples - so we exclude snp similarity
+    :return: the string to create the filtered haplotype similarity in the sql
+    """
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    samples_with_haps = 'analysis_method=\'applied_reference_genome\' OR analysis_method=\'whole_genome_sequencing\' OR analysis_method=\'genotyping_by_sequencing\''
+    arg_wgs_sub_table = 'wgs_samples AS (SELECT sample_id FROM {} WHERE  {})'.format(samples_table, samples_with_haps)
+    inner_join_on_sample1 = get_inner_join_str ('wgs_samples', similarity_table, 'sample_id', 'sample1')
+    hap_sim_sample1_wgs = 'hap_sim1 AS (SELECT * from {})'.format(inner_join_on_sample1)
+    inner_join_on_sample2 = get_inner_join_str ('wgs_samples', 'hap_sim1', 'sample_id', 'sample2')
+    hap_sim_sample2_wgs = 'hap_sim2 AS (SELECT similarity_score, end_position-start_position as len FROM {})'.format(inner_join_on_sample2)
+    return '{},\n{},\n{}'.format(arg_wgs_sub_table, hap_sim_sample1_wgs, hap_sim_sample2_wgs)
 
 
+def get_similarity(host, data_version, min_score):
+    temp_tables = get_hap_sim_of_hap_samples_sub_talble_string(host, data_version)
+    query = 'WITH {}\nSELECT MEDIAN(len) OVER () as MEDIAN FROM hap_sim2 WHERE similarity_score >= {} limit 1;'.format(temp_tables,min_score)
+    a = get_all_results(host, query)
+    return int(a[0][0])
 
 
-
-
+host = 'rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
+data_version = 'public_soy_v2_03'
+a = get_similarity(host, data_version, 0.9)
+print(a)
