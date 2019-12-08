@@ -3,7 +3,8 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+import logging
+#logging.getLogger().setLevel(logging.INFO)
 
 def create_connection_cursor(host):
     dbname='genomagic'
@@ -18,6 +19,7 @@ def create_connection_cursor(host):
 
 def get_all_results(host, query):
     assert query[-1] == ';'
+    logging.info("executing {}".format(query))
     cur = create_connection_cursor(host)
     cur.execute(query)
     rows = cur.fetchall()
@@ -97,10 +99,11 @@ def get_samples_type_info_as_string(host, data_version):
 def get_hap_count_total_hap_markers_as_string(host, data_version):
     haplotypes_info_table = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
     rows = get_all_results(host, 'SELECT COUNT(*) FROM {};'.format(haplotypes_info_table))
-    hap_markers_count = int(rows[0][0]/1000000)
+    hap_markers_count = int(rows[0][0])
     rows = get_all_results(host, 'SELECT COUNT(*) FROM {} WHERE chromosome=0;'.format(haplotypes_info_table))
-    unmapped_hap_markers_count = int(rows[0][0]/1000000)
-    return 'in table {} there are total of {}M haplotype markers {}M of them are unmapped'.format(haplotypes_info_table, hap_markers_count, unmapped_hap_markers_count)
+    unmapped_hap_markers_count = int(rows[0][0])
+    return [hap_markers_count, unmapped_hap_markers_count]
+    #'in table {} there are total of {}M haplotype markers {}M of them are unmapped'.format(haplotypes_info_table, hap_markers_count, unmapped_hap_markers_count)
 
 
 def get_hap_samples_total_as_string(host, data_version):
@@ -112,10 +115,11 @@ def get_hap_samples_total_as_string(host, data_version):
     hapsXsamples_query = 'WITH {}, {} SELECT COUNT(*) FROM {}'.format(sub_table_samples, sub_table_haps,
                                                                       inner_join_sub_table)
     rows = get_all_results(host, '{};'.format(hapsXsamples_query))
-    total_haps_samples = int(rows[0][0] / 1000000)
+    total_haps_samples = int(rows[0][0] )
     rows = get_all_results(host, '{} WHERE chromosome=0;'.format(hapsXsamples_query))
-    unmapped_haps_samples = int(rows[0][0] / 1000000)
-    print('There are {}M hapsXsamples {}M of them are unmapped'.format(total_haps_samples, unmapped_haps_samples))
+    unmapped_haps_samples = int(rows[0][0] )
+    return [total_haps_samples, unmapped_haps_samples]
+    #print('There are {}M hapsXsamples {}M of them are unmapped'.format(total_haps_samples, unmapped_haps_samples))
 
 
 def hist_count(host, data_version):
@@ -204,6 +208,9 @@ def total_similarity(host, data_version):
     df.to_csv(out_name, index=False)
     return df['len'].mean()
 
+
+def check_same_position():
+    'select count(haplotype_idx),length,chromosome,start_position,end_position from syn_maize_v4_3_gbs_haplotypes_info_view where chromosome=2 and start_position=end_position group by length,chromosome,start_position,end_position having count(haplotype_idx)'
 
 
 
