@@ -219,21 +219,46 @@ def get_samples_table_by_analysis_method_query_string(host, data_version, analys
     query = 'select sample_id,analysis_method from {} where {}'.format(samples_table, filter_str)
     return query
 
-
-def write_samples_haps_count_to_file(host, data_version):
-    arg_wgs_query = get_samples_table_by_analysis_method_query_string(host, data_version, ['applied_reference_genome', 'whole_genome_sequencing'])
+def get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version, temp_table_name1, temp_table_name2, temp_table_name3):
+    table_1_content = get_samples_table_by_analysis_method_query_string(host, data_version, ['applied_reference_genome',
+                                                                                           'whole_genome_sequencing'])
     haplotypes_samples_table = get_table_name(host, data_version, 'HAPLOTYPE_SAMPLES')
     haplotypes_info_table = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
-    samples_table_as = 'arg_wgs_samples AS ({})'.format(arg_wgs_query)
-    haplotypes_samples_table_arg_wgs_as = 'samples AS (SELECT haplotype_idx, arg_wgs_samples.sample_id, ' \
-                                          'analysis_method FROM {})'.format(
-        get_inner_join_str(haplotypes_samples_table, 'arg_wgs_samples', 'sample_id', 'sample_id'))
-    haps_info_as = 'haps AS (SELECT haplotype_idx, chromosome FROM {})'.format(haplotypes_info_table)
-    full_query = 'WITH {}, {}, {} SELECT sample_id, analysis_method, count(samples.haplotype_idx) FROM {} ' \
-                 'WHERE chromosome > 0 GROUP BY sample_id, analysis_method;'.format(
-        samples_table_as, haplotypes_samples_table_arg_wgs_as, haps_info_as, get_inner_join_str('samples', 'haps', 'haplotype_idx', 'haplotype_idx'))
+    inner_join_str = get_inner_join_str(haplotypes_samples_table, temp_table_name1, 'sample_id', 'sample_id')
+    table_2_content = 'SELECT haplotype_idx, {}.sample_id, analysis_method FROM {}'.format(temp_table_name1, inner_join_str)
+    inner_join_str2 = get_inner_join_str(haplotypes_info_table, temp_table_name2, 'haplotype_idx', 'haplotype_idx')
+    table_3_content = 'SELECT sample_id,analysis_method,{}.haplotype_idx from {} WHERE chromosome > 0'.format(temp_table_name2, inner_join_str2)
+    temp_tables_string = '{} as ({}), {} as ({}), {} as ({})'.format(temp_table_name1, table_1_content, temp_table_name2,
+                                                                  table_2_content, temp_table_name3, table_3_content)
+    return temp_tables_string
+
+
+def write_samples_haps_count_to_file(host, data_version):
+    mapped_table_name = 'mapped_hap_samples'
+    haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,'temp_table1', 'temp_table2', mapped_table_name)
+    full_query = 'WITH {} SELECT sample_id, analysis_method, count(haplotype_idx) FROM {} GROUP BY sample_id, analysis_method;'.format(haps_samples_mapped_arg_wgs, mapped_table_name)
     rows = get_all_results(host, full_query)
     out_name = '{}/haps_per_sample.csv'.format(os.getcwd())
     df = pd.DataFrame(rows, columns =['sample id', 'analysis_method', 'haps count'])
     df.to_csv(out_name, index=False)
     print("saved arg_wgs_full_haps_count to {}".format(out_name))
+
+
+def write_samples_haps_freq_to_file(host, data_version):
+    mapped_table_name = 'mapped_hap_samples'
+    haps_freq_table_name = 'haps_freq'
+    haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,
+                                                                                         'temp_table1', 'temp_table2',
+                                                                                         mapped_table_name)
+    haps_freq = '{} as (select count(*) as freq,haplotype_idx from {} group by haplotype_idx)'.format(haps_freq_table_name, mapped_table_name)
+    inner_join_str = get_inner_join_str(haps_freq_table_name, mapped_table_name, 'haplotype_idx', 'haplotype_idx')
+    full_query = 'WITH {}, {} SELECT sample_id,freq,count(haps_freq.haplotype_idx) FROM {} GROUP BY sample_id,freq ORDER BY sample_id,freq;'.format(
+        haps_samples_mapped_arg_wgs, haps_freq, inner_join_str)
+    rows = get_all_results(host, full_query)
+    out_name = '{}/haps_freq_per_sample.csv'.format(os.getcwd())
+    df = pd.DataFrame(rows, columns=['sample id', 'hap freq', 'count'])
+    df.to_csv(out_name, index=False)
+    print("saved arg_wgs_full_haps_count to {}".format(out_name))
+
+#host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
+#data_version='maize_benchmark_test_fix_mkrs_919_01'
