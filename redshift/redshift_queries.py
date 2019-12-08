@@ -3,7 +3,8 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+import logging
+#logging.getLogger().setLevel(logging.INFO)
 
 def create_connection_cursor(host):
     dbname='genomagic'
@@ -18,6 +19,7 @@ def create_connection_cursor(host):
 
 def get_all_results(host, query):
     assert query[-1] == ';'
+    logging.info("executing sql query: {}".format(query))
     cur = create_connection_cursor(host)
     cur.execute(query)
     rows = cur.fetchall()
@@ -97,10 +99,11 @@ def get_samples_type_info_as_string(host, data_version):
 def get_hap_count_total_hap_markers_as_string(host, data_version):
     haplotypes_info_table = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
     rows = get_all_results(host, 'SELECT COUNT(*) FROM {};'.format(haplotypes_info_table))
-    hap_markers_count = int(rows[0][0]/1000000)
+    hap_markers_count = int(rows[0][0])
     rows = get_all_results(host, 'SELECT COUNT(*) FROM {} WHERE chromosome=0;'.format(haplotypes_info_table))
-    unmapped_hap_markers_count = int(rows[0][0]/1000000)
-    return 'in table {} there are total of {}M haplotype markers {}M of them are unmapped'.format(haplotypes_info_table, hap_markers_count, unmapped_hap_markers_count)
+    unmapped_hap_markers_count = int(rows[0][0])
+    return [hap_markers_count, unmapped_hap_markers_count]
+    #'in table {} there are total of {}M haplotype markers {}M of them are unmapped'.format(haplotypes_info_table, hap_markers_count, unmapped_hap_markers_count)
 
 
 def get_hap_samples_total_as_string(host, data_version):
@@ -112,10 +115,11 @@ def get_hap_samples_total_as_string(host, data_version):
     hapsXsamples_query = 'WITH {}, {} SELECT COUNT(*) FROM {}'.format(sub_table_samples, sub_table_haps,
                                                                       inner_join_sub_table)
     rows = get_all_results(host, '{};'.format(hapsXsamples_query))
-    total_haps_samples = int(rows[0][0] / 1000000)
+    total_haps_samples = int(rows[0][0])
     rows = get_all_results(host, '{} WHERE chromosome=0;'.format(hapsXsamples_query))
-    unmapped_haps_samples = int(rows[0][0] / 1000000)
-    print('There are {}M hapsXsamples {}M of them are unmapped'.format(total_haps_samples, unmapped_haps_samples))
+    unmapped_haps_samples = int(rows[0][0])
+    return [total_haps_samples, unmapped_haps_samples]
+    #print('There are {}M hapsXsamples {}M of them are unmapped'.format(total_haps_samples, unmapped_haps_samples))
 
 
 def hist_count(host, data_version):
@@ -147,7 +151,7 @@ def hist_count2(host, data_version):
     plt.show()
 
 
-def get_inner_join_str (table1, table2, field1, field2):
+def get_inner_join_str(table1, table2, field1, field2):
     return '{} INNER JOIN {} ON {}.{}={}.{}'.format(table1, table2, table1, field1, table2, field2)
 
 
@@ -198,15 +202,63 @@ def len_histogram(host, data_version):
 def total_similarity(host, data_version):
     out_name = '{}/similarity_length.csv'.format(os.getcwd())
     similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
-    sql_query = "SELECT SUM(end_position-start_position) AS len , sample1, sample2 FROM {} where identical_by_state='t' group by sample1, sample2;".format(similarity_table)
+    sql_query = "SELECT SUM(end_position-start_position) AS len , sample1, sample2 FROM {} where " \
+                "identical_by_state='t' group by sample1, sample2;".format(similarity_table)
     rows = get_all_results(host, sql_query)
     df = pd.DataFrame.from_records(rows, columns=['len','sample1','sample2'])
     df.to_csv(out_name, index=False)
     return df['len'].mean()
 
 
+def get_samples_table_by_analysis_method_query_string(host, data_version, analysis_methods):
+    assert len(analysis_methods) > 0
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    filter_str = "analysis_method = \'{}\'".format(analysis_methods[0])
+    for a in analysis_methods[1:]:
+        filter_str = '{} OR analysis_method = \'{}\''.format(filter_str, a)
+    query = 'select sample_id,analysis_method from {} where {}'.format(samples_table, filter_str)
+    return query
+
+def get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version, temp_table_name1, temp_table_name2, temp_table_name3):
+    table_1_content = get_samples_table_by_analysis_method_query_string(host, data_version, ['applied_reference_genome',
+                                                                                           'whole_genome_sequencing'])
+    haplotypes_samples_table = get_table_name(host, data_version, 'HAPLOTYPE_SAMPLES')
+    haplotypes_info_table = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
+    inner_join_str = get_inner_join_str(haplotypes_samples_table, temp_table_name1, 'sample_id', 'sample_id')
+    table_2_content = 'SELECT haplotype_idx, {}.sample_id, analysis_method FROM {}'.format(temp_table_name1, inner_join_str)
+    inner_join_str2 = get_inner_join_str(haplotypes_info_table, temp_table_name2, 'haplotype_idx', 'haplotype_idx')
+    table_3_content = 'SELECT sample_id,analysis_method,{}.haplotype_idx from {} WHERE chromosome > 0'.format(temp_table_name2, inner_join_str2)
+    temp_tables_string = '{} as ({}), {} as ({}), {} as ({})'.format(temp_table_name1, table_1_content, temp_table_name2,
+                                                                  table_2_content, temp_table_name3, table_3_content)
+    return temp_tables_string
 
 
-#len_histogram(host, data_version)
-#a = get_average_length_of_hap_similarity(host, data_version, 0)
-#print(a)
+def write_samples_haps_count_to_file(host, data_version):
+    mapped_table_name = 'mapped_hap_samples'
+    haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,'temp_table1', 'temp_table2', mapped_table_name)
+    full_query = 'WITH {} SELECT sample_id, analysis_method, count(haplotype_idx) FROM {} GROUP BY sample_id, analysis_method;'.format(haps_samples_mapped_arg_wgs, mapped_table_name)
+    rows = get_all_results(host, full_query)
+    out_name = '{}/haps_per_sample.csv'.format(os.getcwd())
+    df = pd.DataFrame(rows, columns =['sample id', 'analysis_method', 'haps count'])
+    df.to_csv(out_name, index=False)
+    print("saved arg_wgs_full_haps_count to {}".format(out_name))
+
+
+def write_samples_haps_freq_to_file(host, data_version):
+    mapped_table_name = 'mapped_hap_samples'
+    haps_freq_table_name = 'haps_freq'
+    haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,
+                                                                                         'temp_table1', 'temp_table2',
+                                                                                         mapped_table_name)
+    haps_freq = '{} as (select count(*) as freq,haplotype_idx from {} group by haplotype_idx)'.format(haps_freq_table_name, mapped_table_name)
+    inner_join_str = get_inner_join_str(haps_freq_table_name, mapped_table_name, 'haplotype_idx', 'haplotype_idx')
+    full_query = 'WITH {}, {} SELECT sample_id,freq,count(haps_freq.haplotype_idx) FROM {} GROUP BY sample_id,freq ORDER BY sample_id,freq;'.format(
+        haps_samples_mapped_arg_wgs, haps_freq, inner_join_str)
+    rows = get_all_results(host, full_query)
+    out_name = '{}/haps_freq_per_sample.csv'.format(os.getcwd())
+    df = pd.DataFrame(rows, columns=['sample id', 'hap freq', 'count'])
+    df.to_csv(out_name, index=False)
+    print("saved arg_wgs_full_haps_count to {}".format(out_name))
+
+#host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
+#data_version='maize_benchmark_test_fix_mkrs_919_01'
