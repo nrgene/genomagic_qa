@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
-#logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(logging.INFO)
 
 def create_connection_cursor(host):
     dbname='genomagic'
@@ -115,9 +115,9 @@ def get_hap_samples_total_as_string(host, data_version):
     hapsXsamples_query = 'WITH {}, {} SELECT COUNT(*) FROM {}'.format(sub_table_samples, sub_table_haps,
                                                                       inner_join_sub_table)
     rows = get_all_results(host, '{};'.format(hapsXsamples_query))
-    total_haps_samples = int(rows[0][0] )
+    total_haps_samples = int(rows[0][0])
     rows = get_all_results(host, '{} WHERE chromosome=0;'.format(hapsXsamples_query))
-    unmapped_haps_samples = int(rows[0][0] )
+    unmapped_haps_samples = int(rows[0][0])
     return [total_haps_samples, unmapped_haps_samples]
     #print('There are {}M hapsXsamples {}M of them are unmapped'.format(total_haps_samples, unmapped_haps_samples))
 
@@ -151,7 +151,7 @@ def hist_count2(host, data_version):
     plt.show()
 
 
-def get_inner_join_str (table1, table2, field1, field2):
+def get_inner_join_str(table1, table2, field1, field2):
     return '{} INNER JOIN {} ON {}.{}={}.{}'.format(table1, table2, table1, field1, table2, field2)
 
 
@@ -202,15 +202,63 @@ def len_histogram(host, data_version):
 def total_similarity(host, data_version):
     out_name = '{}/similarity_length.csv'.format(os.getcwd())
     similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
-    sql_query = "SELECT SUM(end_position-start_position) AS len , sample1, sample2 FROM {} where identical_by_state='t' group by sample1, sample2;".format(similarity_table)
+    sql_query = "SELECT SUM(end_position-start_position) AS len , sample1, sample2 FROM {} where " \
+                "identical_by_state='t' group by sample1, sample2;".format(similarity_table)
     rows = get_all_results(host, sql_query)
     df = pd.DataFrame.from_records(rows, columns=['len','sample1','sample2'])
     df.to_csv(out_name, index=False)
     return df['len'].mean()
 
 
-def check_same_position():
-    'select count(haplotype_idx),length,chromosome,start_position,end_position from syn_maize_v4_3_gbs_haplotypes_info_view where chromosome=2 and start_position=end_position group by length,chromosome,start_position,end_position having count(haplotype_idx)'
+def get_samples_table_by_analysis_method_query_string(host, data_version, analysis_methods):
+    assert len(analysis_methods) > 0
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    filter_str = "analysis_method = \'{}\'".format(analysis_methods[0])
+    for a in analysis_methods[1:]:
+        filter_str = '{} OR analysis_method = \'{}\''.format(filter_str, a)
+    query = 'select sample_id,analysis_method from {} where {}'.format(samples_table, filter_str)
+    return query
+
+
+def get_arg_wgs_full_haps_count(host, data_version):
+    arg_wgs_query = get_samples_table_by_analysis_method_query_string(host, data_version, ['applied_reference_genome', 'whole_genome_sequencing'])
+    haplotypes_samples_table = get_table_name(host, data_version, 'HAPLOTYPE_SAMPLES')
+    haplotypes_info_table = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
+    samples_table_as = 'arg_wgs_samples AS ({})'.format(arg_wgs_query)
+    haplotypes_samples_table_arg_wgs_as = 'samples AS (SELECT haplotype_idx, arg_wgs_samples.sample_id FROM {})'.format(
+        get_inner_join_str(haplotypes_samples_table, 'arg_wgs_samples', 'sample_id', 'sample_id'))
+    haps_info_as = 'haps AS (SELECT haplotype_idx, chromosome FROM {})'.format(haplotypes_info_table)
+    full_query = 'WITH {}, {}, {} SELECT count(*),sample_id from {} where chromosome > 0 group by sample_id;'.format(
+        samples_table_as, haplotypes_samples_table_arg_wgs_as, haps_info_as, get_inner_join_str('samples', 'haps', 'haplotype_idx', 'haplotype_idx'))
+    #print(full_query)
+    rows = get_all_results(host, full_query)
+    out_name = '{}/haps_per_sample.csv'.format(os.getcwd())
+    df = pd.DataFrame(rows, columns =['haps count', 'sample id'])
+    df.to_csv(out_name, index=False)
+    print("saved arg_wgs_full_haps_count to {}".format(out_name))
+    #return get_all_results(host, full_query)
+
+
+host = "rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com"
+data_version = "maize_benchmark_test_fix_mkrs_919_01"
+s = get_arg_wgs_full_haps_count(host, data_version)
+#df = pd.DataFrame(s, columns =['haps count', 'sample id'])
+#print(df)
+
+
+
+
+#def get_full_hap_samples_list():
+
+ #   query = ''
+#"""
+#WITH arg_wgs_samples AS (select sample_id,analysis_method from maize_benchmark_test_fix_mkrs_919_01_samples_view where analysis_method = 'applied_reference_genome' OR analysis_method = 'whole_genome_sequencing'),
+#samples AS (SELECT haplotype_idx, arg_wgs_samples.sample_id FROM maize_benchmark_test_fix_mkrs_919_01_haplotype_samples_view INNER JOIN arg_wgs_samples ON maize_benchmark_test_fix_mkrs_919_01_haplotype_samples_view.sample_id=arg_wgs_samples.sample_id),
+#haps AS (SELECT haplotype_idx, chromosome FROM maize_benchmark_test_fix_mkrs_919_01_haplotypes_info_view)
+#SELECT count(*),sample_id from samples INNER JOIN haps ON samples.haplotype_idx=haps.haplotype_idx where chromosome > 0 group by sample_id;"""
+
+#def check_same_position():
+#    'select count(haplotype_idx),length,chromosome,start_position,end_position from syn_maize_v4_3_gbs_haplotypes_info_view where chromosome=2 and start_position=end_position group by length,chromosome,start_position,end_position having count(haplotype_idx)'
 
 
 
