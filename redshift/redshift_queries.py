@@ -36,6 +36,13 @@ def get_table_name(host, data_version, table_type):
     return row[0]
 
 
+def get_sql_quey_as_data_frame(host, query, column_names):
+    rows = get_all_results(host, query)
+    df = pd.DataFrame(rows, columns=column_names)
+    return df
+
+
+
 def simple_grouping(host, table_name, groupby_field):
     query = 'SELECT COUNT(*),{} FROM {} GROUP BY {};'.format(groupby_field, table_name, groupby_field)
     return get_all_results(host, query)
@@ -171,18 +178,7 @@ def get_hap_sim_of_hap_samples_sub_talble_string(host, data_version):
     return '{},\n{},\n{}'.format(arg_wgs_sub_table, hap_sim_sample1_wgs, hap_sim_sample2_wgs)
 
 
-def get_median_length_of_hap_similarity(host, data_version, min_score):
-    temp_tables = get_hap_sim_of_hap_samples_sub_talble_string(host, data_version)
-    query = 'WITH {}\nSELECT MEDIAN(len) OVER () as MEDIAN FROM hap_sim2 WHERE similarity_score >= {} limit 1;'.format(temp_tables,min_score)
-    a = get_all_results(host, query)
-    return int(a[0][0])
 
-
-def get_average_length_of_hap_similarity(host, data_version, min_score):
-    temp_tables = get_hap_sim_of_hap_samples_sub_talble_string(host, data_version)
-    query = 'WITH {}\nselect AVG(len) from hap_sim2 where similarity_score >= {};'.format(temp_tables,min_score)
-    a = get_all_results(host, query)
-    return int(a[0][0])
 
 
 def len_histogram(host, data_version):
@@ -260,5 +256,78 @@ def write_samples_haps_freq_to_file(host, data_version):
     df.to_csv(out_name, index=False)
     print("saved arg_wgs_full_haps_count to {}".format(out_name))
 
+
+def get_haplotype_similarity_with_analysis_types(host, data_version, table_name):
+    temp_var1 = 'temp_var1'
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    fields1 = 'analysis_method as sample1_type,sample2,end_position-start_position as len, similarity_score'
+    inner_join1 = get_inner_join_str(similarity_table, samples_table, 'sample1', 'sample_id')
+    table1 = '{} AS (SELECT {} FROM {})'.format(temp_var1, fields1, inner_join1)
+    fields2 = 'sample1_type,analysis_method as sample2_type, len, similarity_score'
+    inner_join2 = get_inner_join_str(temp_var1, samples_table, 'sample2', 'sample_id')
+    table2 = '{} AS (SELECT {} FROM {})'.format(table_name, fields2, inner_join2)
+    return '{}, {}'.format(table1, table2)
+
+
+def get_specific_sample_types_string(pairs_list, field1, field2):
+    my_str = '({}=\'{}\' AND {}=\'{}\')'.format(field1, pairs_list[0][0], field2,pairs_list[0][1])
+    for p in pairs_list[1:]:
+        my_str = '{} OR {}'.format(my_str, '({}=\'{}\' AND {}=\'{}\')'.format(field1, p[0], field2, p[1]))
+    return my_str
+
+
+def get_wgs_haplotype_similarity(host, data_version, pairs_list, table_name):
+    #pairs_list = []
+    #pairs_list.append(['whole_genome_sequencing', 'whole_genome_sequencing'])
+    #pairs_list.append(['applied_reference_genome', 'whole_genome_sequencing'])
+    #pairs_list.append(['whole_genome_sequencing', 'applied_reference_genome'])
+    #pairs_list.append(['applied_reference_genome', 'applied_reference_genome'])
+    pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
+    hap_sim_types_name = 'hap_sim_types_table'
+    hap_sim_types_str = get_haplotype_similarity_with_analysis_types(host, data_version, hap_sim_types_name)
+    query = '{}, {} as (SELECT len,similarity_score FROM {} WHERE {})'.format(hap_sim_types_str, table_name, hap_sim_types_name, pairs_str)
+    return query
+
+
+def get_median_length_of_hap_similarity(host, data_version, pairs_list, min_score):
+    temp_table_name = 'score_and_len_from_hap_sim_table'
+    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    query = 'WITH {} SELECT MEDIAN(len) OVER () FROM {} WHERE similarity_score >= {} LIMIT 1;'.format(temp_tables, temp_table_name, min_score)
+    a = get_all_results(host, query)
+    assert a is not None
+    if len(a) == 0:
+        return None
+    assert a[0] is not None
+    assert a[0][0] is not None
+    return int(a[0][0])
+
+
+def get_average_length_of_hap_similarity(host, data_version, pairs_list, min_score):
+    temp_table_name = 'score_and_len_from_hap_sim_table'
+    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    query = 'WITH {} SELECT AVG(len) FROM {} where similarity_score >= {};'.format(temp_tables, temp_table_name, min_score)
+    a = get_all_results(host, query)
+    assert a is not None
+    assert len(a) > 0
+    assert a[0] is not None
+    if a[0][0] is None:
+        return None
+    else:
+        return int(a[0][0])
+
+
+
+
+
+#pairs_list = []
+#pairs_list.append(['whole_genome_sequencing', 'whole_genome_sequencing'])
+#pairs_list.append(['applied_reference_genome', 'whole_genome_sequencing'])
+#pairs_list.append(['whole_genome_sequencing', 'applied_reference_genome'])
+#pairs_list.append(['applied_reference_genome', 'applied_reference_genome'])
 #host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
 #data_version='maize_benchmark_test_fix_mkrs_919_01'
+
+#s = get_average_length_of_hap_similarity(host, data_version, pairs_list, 0)
+#print (s)
+
