@@ -1,5 +1,6 @@
 import sys
 import os
+import pandas as pd
 working_dir_path = os.getcwd()
 genomagic_qa_repo_path = '/'.join(working_dir_path.split('/')[:-1])
 sys.path.append(genomagic_qa_repo_path)
@@ -156,11 +157,9 @@ def get_subset_of_similarities(hap_sim1, sample1, sample2):
     return df1.astype(int).drop_duplicates()
 
 
-def compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samples):
+def get_similarities_comparison_by_samples_pair(hap_sim1, hap_sim2, samples):
+    arr = []
     samples_num = len(samples)
-    hap_sim1_uniq_len = 0
-    hap_sim2_uniq_len = 0
-    shared_len = 0
     for i in range(samples_num):
         for j in range(i + 1, samples_num):
             sample1 = samples[i]
@@ -169,18 +168,43 @@ def compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samp
             df2 = get_subset_of_similarities(hap_sim2, sample1, sample2)
             [only_in_1_len, only_in_2_len, shared_length] = compare_dataframes_of_similarities(
                 df1, df2)
-            hap_sim1_uniq_len += only_in_1_len
-            hap_sim2_uniq_len += only_in_2_len
-            shared_len += shared_length
+            arr.append([sample1, sample2, only_in_1_len, only_in_2_len, shared_length])
+    return pd.DataFrame(arr, columns=['sample1', 'sample2', 'unique in 1', 'unique in 2', 'both'])
+
+
+def compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samples):
+    df = get_similarities_comparison_by_samples_pair(hap_sim1, hap_sim2, samples)
+    hap_sim1_uniq_len = df['unique in 1'].sum()
+    hap_sim2_uniq_len = df['unique in 2'].sum()
+    shared_len = df['both'].sum()
     return [hap_sim1_uniq_len, hap_sim2_uniq_len, shared_len]
 
 
-api_server = 'api-dev.nrgene.local:8080'
-dv1='maize_benchmark_test_fix_mkrs_919_03'
-dv2 = 'maize_benchmark_only_arg_wgs'
-samples=['b73v4__ver100', 'w22__ver100', 'cml247__ver100', 'dan299__ver110']
-hap_sim1 = ar.get_raw_similarities_between_multiple_sampels(api_server, dv1, samples, "1,2")
-hap_sim2 = ar.get_raw_similarities_between_multiple_sampels(api_server, dv2, samples, "1,2")
-[fn1, fp1, intersect1] = compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samples)
-print(fn1)
+#api_server = 'api-dev.nrgene.local:8080'
+#dv1='maize_benchmark_test_fix_mkrs_919_03'
+#dv2 = 'maize_benchmark_only_arg_wgs'
+#dv3 = 'dm_gm_public_maize_232'
+#samples_wgs=['b73v4__ver100', 'cml247__ver100', 'ep1_v2__ver100', 'w22__ver100', 'ki3__ver110', 'f7_v2__ver100', 'mo17__ver100']
+#samples_snp = ['b73', 'cml247', 'ep1', 'w22', 'ki3', 'f7', 'mo17']
+#n = len(samples_wgs)
+#my_dict = {}
+#for i in range(n):
+#    my_dict[samples_snp[i]] = samples_wgs[i]
+#hap_sim1 = ar.get_raw_similarities_between_multiple_sampels(api_server, dv1, samples_wgs, "1,2")
+#hap_sim2 = ar.get_raw_similarities_between_multiple_sampels(api_server, dv2, samples_wgs, "1,2")
+#snp_sim = ar.get_raw_similarities_between_multiple_sampels(api_server, dv3, samples_snp, "1,2").replace(my_dict)
+#[fn1, fp1, intersect1] = compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, snp_sim, samples_wgs)
+#[fn2, fp2, intersect2] = compute_similarity_match_for_multiple_sampels_in_df(hap_sim2, snp_sim, samples_wgs)
+#print("{} {} {}".format(fn1/1000000, fp1/1000000, intersect1/1000000))
+#print("{} {} {}".format(fn2/1000000, fp2/1000000, intersect2/1000000))
+
+#[fn1, fp1, intersect1] = compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samples)
+#print("{}, {}, {}".format(fn1/1000000, fp1/1000000, intersect1/1000000))
+
+#b73
+#cml247
+#mo17
+#w22
+#ki3
+
 
