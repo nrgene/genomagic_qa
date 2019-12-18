@@ -11,4 +11,4 @@ dependencies:
   - matplotlib
   - seaborn
   - psycopg2
-  - sklearn
+  - scikit-learn
