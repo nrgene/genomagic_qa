@@ -17,7 +17,9 @@ class VcfIterator:
         [self.columns_header, self.next_line] = VcfIterator.get_last_header_and_first_non_header(self.vcf_file)
 
     def get_next_line_splitted(self):
-        assert self.has_next()
+        if not self.has_next():
+            return None
+        #assert self.has_next()
         curr_line = self.next_line
         my_next_line = self.vcf_file.readline().rstrip()
         if not my_next_line:
