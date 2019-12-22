@@ -1,8 +1,5 @@
-#import os
 import sys
-#working_dir_path = os.getcwd()
 genomagic_qa_repo_path = '/'.join(sys.argv[0].split('/')[:-2])
-#genomagic_qa_repo_path = '/'.join(working_dir_path.split('/')[:-1])
 sys.path.append(genomagic_qa_repo_path)
 import vcf_utils.vcf_iterator as vi
 vcf_info_columns_num = 9
@@ -138,8 +135,3 @@ progeny_vcf_file = sys.argv[1]
 parents_vcf_file = sys.argv[2]
 out_vcf_file_name = sys.argv[3]
 write_output_file(progeny_vcf_file, parents_vcf_file, out_vcf_file_name)
-
-#'/prodslow/testing/ariel/genomagic_qa/PSG-20/progeny_similarity.vcf'
-#parents_vcf_file = '/prodslow/testing/ariel/genomagic_qa/PSG-20/parents_similarity.vcf'
-#out_vcf_file_name = '/prodslow/testing/ariel/genomagic_qa/PSG-16/parents_progeny_merged.vcf'
-#write_output_file(progeny_vcf_file, parents_vcf_file, out_vcf_file_name)
