@@ -1,7 +1,8 @@
-import os
+#import os
 import sys
-working_dir_path = os.getcwd()
-genomagic_qa_repo_path = '/'.join(working_dir_path.split('/')[:-1])
+#working_dir_path = os.getcwd()
+genomagic_qa_repo_path = '/'.join(sys.argv[0].split('/')[:-2])
+#genomagic_qa_repo_path = '/'.join(working_dir_path.split('/')[:-1])
 sys.path.append(genomagic_qa_repo_path)
 import vcf_utils.vcf_iterator as vi
 vcf_info_columns_num = 9
@@ -65,9 +66,9 @@ def get_mapping_from_progeny_to_parents(haps_list_of_progeny, progeny_samples, p
     coloring_samples_count = haps_list_of_progeny.count(',')
     mapping_from_progeny_to_paretns = {}
     for i in range(coloring_samples_count):
-        coloring_samples = progeny_samples[i]
-        assert coloring_samples in parents_samples
-        mapping_from_progeny_to_paretns[str(i + 1)] = parents_samples.index(coloring_samples)
+        coloring_sample = progeny_samples[i]
+        assert coloring_sample in parents_samples, "{} is missing".format(coloring_sample)
+        mapping_from_progeny_to_paretns[str(i + 1)] = parents_samples.index(coloring_sample)
     mapping_from_progeny_to_paretns[str(coloring_samples_count + 1)] = -1
     return mapping_from_progeny_to_paretns
 
@@ -101,7 +102,7 @@ def write_output_file(progeny_vcf_file, parents_vcf_file, out_vcf_file_name):
     mapping_from_progeny_to_paretns = get_mapping_from_progeny_to_parents(haps_list_of_progeny, progeny_samples,
                                                                           parents_samples)
     output_vcf = open(out_vcf_file_name, 'w')
-    output_vcf.write(get_vcf_header(parents_samples))
+    output_vcf.write(get_vcf_header(progeny_samples))
     while progeny_line_parts is not None and parents_line_parts is not None:
         [chr1, start1, end1] = get_position_from_vcf_splitted_line(progeny_line_parts)
         [chr2, start2, end2] = get_position_from_vcf_splitted_line(parents_line_parts)
@@ -133,7 +134,12 @@ def write_output_file(progeny_vcf_file, parents_vcf_file, out_vcf_file_name):
     output_vcf.close()
 
 
-progeny_vcf_file = '/prodslow/testing/ariel/genomagic_qa/PSG-16/progeny_sim'
-parents_vcf_file = '/prodslow/testing/ariel/genomagic_qa/PSG-16/parents_sim_fixed'
-out_vcf_file_name = '/prodslow/testing/ariel/genomagic_qa/PSG-16/out'
+progeny_vcf_file = sys.argv[1]
+parents_vcf_file = sys.argv[2]
+out_vcf_file_name = sys.argv[3]
 write_output_file(progeny_vcf_file, parents_vcf_file, out_vcf_file_name)
+
+#'/prodslow/testing/ariel/genomagic_qa/PSG-20/progeny_similarity.vcf'
+#parents_vcf_file = '/prodslow/testing/ariel/genomagic_qa/PSG-20/parents_similarity.vcf'
+#out_vcf_file_name = '/prodslow/testing/ariel/genomagic_qa/PSG-16/parents_progeny_merged.vcf'
+#write_output_file(progeny_vcf_file, parents_vcf_file, out_vcf_file_name)
