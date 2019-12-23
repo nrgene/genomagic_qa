@@ -115,7 +115,7 @@ def write_output_file(progeny_vcf_file, parents_vcf_file, out_vcf_file_name):
         info_part = get_line_info(chr1, my_start, my_end, parents_line_parts[4])
         data_part = get_line_data(progeny_line_parts, mapping_from_progeny_to_paretns, parents_line_parts,
                                   my_end - my_start + 1)
-        output_vcf.write("{}\t{}\n".format(info_part, data_part))
+        output_vcf.write("{}{}\n".format(info_part, data_part))
         if end1 == end2:
             progeny_line_parts = progeny_ite.get_next_line_splitted()
             parents_line_parts = parents_ite.get_next_line_splitted()
