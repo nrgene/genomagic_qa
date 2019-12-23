@@ -61,8 +61,8 @@ def sim_vcf_to_csv(hap_sim_file_name, csv_out_name):
     write_mat_to_csv(csv_out_name, hap_mat, hap_id, samples)
 
 
-hap_sim_file_name = '/mnt/ariel/genomagic/PSG-20/parents_progeny_merged.vcf'
-csv_out_name = '/mnt/ariel/genomagic/PSG-20/parents_progeny_merged.vcf.csv'
+hap_sim_file_name = sys.argv[1]#'/mnt/ariel/genomagic/PSG-20/temp.vcf'
+csv_out_name = sys.argv[2]#'/mnt/ariel/genomagic/PSG-20/parents_progeny_merged.vcf.csv'
 sim_vcf_to_csv(hap_sim_file_name, csv_out_name)
 
 
