@@ -23,19 +23,25 @@ def vcf_line_to_mat(parts):
     return X,Y
 
 
-def sim_vcf_to_mat(hap_sim_file_name):
+def sim_vcf_to_mat(hap_sim_file_name, max_haps_num):
     sim_ite = vi.VcfIterator(hap_sim_file_name)
     a = sim_ite.get_headers()
     samples = a[vcf_info_columns_num:]
     samples_num = len(samples)
-    hap_mat = np.zeros((0, samples_num), dtype=np.int8)
-    hap_id = []
+    hap_mat = np.zeros((max_haps_num, samples_num), dtype=np.int8)
+    counter = 0
+    hap_id = [''] * max_haps_num
     while sim_ite.has_next():
         parts = sim_ite.get_next_line_splitted()
         [m, y] = vcf_line_to_mat(parts)
-        hap_mat = np.concatenate((hap_mat, m), axis=0)
-        hap_id = hap_id + y
-    return [hap_mat, hap_id, samples]
+        row_num = m.shape[0]
+        assert m.shape[0] == len(y)
+        assert m.shape[1] == samples_num
+        assert counter+row_num < max_haps_num
+        hap_mat[counter: counter+row_num,:] = m
+        hap_id[counter: counter+row_num] = y
+        counter += m.shape[0]
+    return [hap_mat[0:counter, :], hap_id[0:counter], samples]
 
 
 def write_mat_to_csv(csv_out_name, hap_mat, hap_id, samples):
@@ -61,9 +67,9 @@ def sim_vcf_to_csv(hap_sim_file_name, csv_out_name):
     write_mat_to_csv(csv_out_name, hap_mat, hap_id, samples)
 
 
-hap_sim_file_name = '/mnt/ariel/genomagic/PSG-20/parents_progeny_merged.vcf'
-csv_out_name = '/mnt/ariel/genomagic/PSG-20/parents_progeny_merged.vcf.csv'
-sim_vcf_to_csv(hap_sim_file_name, csv_out_name)
+#hap_sim_file_name = sys.argv[1]#'/mnt/ariel/genomagic/PSG-20/parents_progeny_merged.vcf'
+#csv_out_name = sys.argv[2]#'/mnt/ariel/genomagic/PSG-20/parents_progeny_merged.vcf.csv'
+#sim_vcf_to_csv(hap_sim_file_name, csv_out_name)
 
 
 
