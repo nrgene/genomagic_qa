@@ -8,7 +8,7 @@ vcf_info_columns_num = 9
 
 def vcf_line_to_mat(parts):
     samples_num = len(parts) - vcf_info_columns_num
-    haps_num = parts[4].count(',')
+    haps_num = parts[4].count(',') + 1
     X = np.zeros((haps_num, samples_num), dtype=np.int8)
     Y = []
     for i in range(samples_num):
@@ -16,10 +16,13 @@ def vcf_line_to_mat(parts):
         assert curr_val.count('|') == 1
         assert curr_val.count(':') == 2
         g = int(curr_val.split('|')[0])-1
-        if g < haps_num:
+        if g>0 and g < haps_num:
             X[g,i] = 2
-    for i in range(haps_num):
-        Y.append('{}_{}_{}'.format(parts[0], parts[1],i))
+    for i in range(haps_num-1):
+        Y.append('{}_{}_HAP{}'.format(parts[0], parts[1],i+1))
+    Y.append('{}_{}_NAHAP'.format(parts[0], parts[1]))
+    
+
     return X,Y
 
 
@@ -57,7 +60,7 @@ def write_mat_to_csv(csv_out_name, hap_mat, hap_id, samples):
     for i in range(samples_num):
         csv_out.write('\"{}\"'.format(i + 1))
         for j in range(total_haps_count):
-            csv_out.write(',\"{}\"'.format(hap_mat[j, i]))
+            csv_out.write(',{}'.format(hap_mat[j, i]))
         csv_out.write(',\"{}\"\n'.format(samples[i]))
     csv_out.close()
 
