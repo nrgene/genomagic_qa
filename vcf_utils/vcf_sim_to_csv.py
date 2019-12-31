@@ -21,9 +21,9 @@ def vcf_line_to_mat(parts):
     for i in range(haps_num-1):
         Y.append('{}_{}_HAP{}'.format(parts[0], parts[1],i+1))
     Y.append('{}_{}_NAHAP'.format(parts[0], parts[1]))
-    
-
-    return X,Y
+    non_zero_ind = X.sum(axis=1)>0
+    non_zero_haps = [Y[i] for i, val in enumerate(non_zero_ind) if val]
+    return X[non_zero_ind,:],non_zero_haps
 
 
 def sim_vcf_to_mat(hap_sim_file_name, max_haps_num):
