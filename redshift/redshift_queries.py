@@ -350,12 +350,23 @@ def write_all_pairwise_similarities(host, data_version, pairs_list, threshold, o
     #out_name = '{}/similarity_length_per_comparison.csv'.format(os.getcwd())
     rows = get_all_results(host, query)
     df = pd.DataFrame.from_records(rows, columns=['sample1','sample2', 'total similarity length'])
-    print('writing results to {}'.format(out_name))
+    print('average similarity length of comparisons is {}'.format(df['total similarity length'].mean()))
     df.to_csv(out_name, index=False)
 
-def asd(pairs_list):
-    pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
-    print(pairs_str)
+
+def get_genome_size(host, data_version):
+    pivot_name = get_table_name(host, data_version, 'PIVOT_SAMPLE')
+    chr_len_table = get_table_name(host, data_version, 'CHROMOSOME_LENGTH')
+    query = 'SELECT SUM(chromosome_length) FROM {} where sample=\'{}\';'.format(chr_len_table, pivot_name)
+    rows = get_all_results(host, query)
+    genome_size = int(rows[0][0])
+    return genome_size
+
+
+
+#data_version = 'public_soy_v2_03'
+#host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
+#get_genome_size(host, data_version)
 
 
 
@@ -374,9 +385,9 @@ def asd(pairs_list):
 #pairs_list.append(['applied_reference_genome', 'whole_genome_sequencing'])
 #pairs_list.append(['whole_genome_sequencing', 'applied_reference_genome'])
 #pairs_list.append(['applied_reference_genome', 'applied_reference_genome'])
-#host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
+#
 #temp_table_name = 'score_and_len_from_hap_sim_table'
-#data_version = 'public_soy_v2_03'
+#
 
 #sim_table = get_haplotype_similarity_with_analysis_types(host, data_version, temp_table_name)
 #print(sim_table)
