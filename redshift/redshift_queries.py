@@ -36,6 +36,13 @@ def get_table_name(host, data_version, table_type):
     return row[0]
 
 
+def get_sql_quey_as_data_frame(host, query, column_names):
+    rows = get_all_results(host, query)
+    df = pd.DataFrame(rows, columns=column_names)
+    return df
+
+
+
 def simple_grouping(host, table_name, groupby_field):
     query = 'SELECT COUNT(*),{} FROM {} GROUP BY {};'.format(groupby_field, table_name, groupby_field)
     return get_all_results(host, query)
@@ -171,18 +178,7 @@ def get_hap_sim_of_hap_samples_sub_talble_string(host, data_version):
     return '{},\n{},\n{}'.format(arg_wgs_sub_table, hap_sim_sample1_wgs, hap_sim_sample2_wgs)
 
 
-def get_median_length_of_hap_similarity(host, data_version, min_score):
-    temp_tables = get_hap_sim_of_hap_samples_sub_talble_string(host, data_version)
-    query = 'WITH {}\nSELECT MEDIAN(len) OVER () as MEDIAN FROM hap_sim2 WHERE similarity_score >= {} limit 1;'.format(temp_tables,min_score)
-    a = get_all_results(host, query)
-    return int(a[0][0])
 
-
-def get_average_length_of_hap_similarity(host, data_version, min_score):
-    temp_tables = get_hap_sim_of_hap_samples_sub_talble_string(host, data_version)
-    query = 'WITH {}\nselect AVG(len) from hap_sim2 where similarity_score >= {};'.format(temp_tables,min_score)
-    a = get_all_results(host, query)
-    return int(a[0][0])
 
 
 def len_histogram(host, data_version):
@@ -199,15 +195,7 @@ def len_histogram(host, data_version):
     plt.show()
 
 
-def total_similarity(host, data_version):
-    out_name = '{}/similarity_length.csv'.format(os.getcwd())
-    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
-    sql_query = "SELECT SUM(end_position-start_position) AS len , sample1, sample2 FROM {} where " \
-                "identical_by_state='t' group by sample1, sample2;".format(similarity_table)
-    rows = get_all_results(host, sql_query)
-    df = pd.DataFrame.from_records(rows, columns=['len','sample1','sample2'])
-    df.to_csv(out_name, index=False)
-    return df['len'].mean()
+
 
 
 def get_samples_table_by_analysis_method_query_string(host, data_version, analysis_methods):
@@ -233,18 +221,28 @@ def get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version, t
     return temp_tables_string
 
 
-def write_samples_haps_count_to_file(host, data_version):
+def write_samples_haps_count_to_file(host, data_version, out_name):
     mapped_table_name = 'mapped_hap_samples'
     haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,'temp_table1', 'temp_table2', mapped_table_name)
     full_query = 'WITH {} SELECT sample_id, analysis_method, count(haplotype_idx) FROM {} GROUP BY sample_id, analysis_method;'.format(haps_samples_mapped_arg_wgs, mapped_table_name)
     rows = get_all_results(host, full_query)
-    out_name = '{}/haps_per_sample.csv'.format(os.getcwd())
+    #out_name = '{}/{}_haps_per_sample.csv'.format(os.getcwd(), data_version)
     df = pd.DataFrame(rows, columns =['sample id', 'analysis_method', 'haps count'])
     df.to_csv(out_name, index=False)
     print("saved arg_wgs_full_haps_count to {}".format(out_name))
 
 
-def write_samples_haps_freq_to_file(host, data_version):
+def flat_freq_dataframe_to_matrix(df):
+    max_freq = df['hap freq'].max()
+    i = 1
+    temp_df1 = df.loc[df['hap freq'] == i, ['sample id', 'count']].rename(columns={'count': 'freq {}'.format(i)})
+    for i in range(2, max_freq + 1):
+        temp_df2 = df.loc[df['hap freq'] == i, ['sample id', 'count']].rename(columns={'count': 'freq {}'.format(i)})
+        temp_df1 = pd.merge(temp_df1, temp_df2, on='sample id', how='outer')
+    return temp_df1.fillna(0)
+
+
+def write_samples_haps_freq_to_file(host, data_version, out_name):
     mapped_table_name = 'mapped_hap_samples'
     haps_freq_table_name = 'haps_freq'
     haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,
@@ -255,10 +253,151 @@ def write_samples_haps_freq_to_file(host, data_version):
     full_query = 'WITH {}, {} SELECT sample_id,freq,count(haps_freq.haplotype_idx) FROM {} GROUP BY sample_id,freq ORDER BY sample_id,freq;'.format(
         haps_samples_mapped_arg_wgs, haps_freq, inner_join_str)
     rows = get_all_results(host, full_query)
-    out_name = '{}/haps_freq_per_sample.csv'.format(os.getcwd())
+    #out_name = '{}/{}_haps_freq_per_sample.csv'.format(os.getcwd(), data_version)
     df = pd.DataFrame(rows, columns=['sample id', 'hap freq', 'count'])
-    df.to_csv(out_name, index=False)
+    mat_df = flat_freq_dataframe_to_matrix(df)
+    mat_df.to_csv(out_name, index=False)
     print("saved arg_wgs_full_haps_count to {}".format(out_name))
+    return df
 
+
+def get_haplotype_similarity_with_analysis_types(host, data_version, table_name):
+    temp_var1 = 'temp_var1'
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    fields1 = 'sample1, analysis_method as sample1_type,sample2,end_position-start_position as len, similarity_score'
+    inner_join1 = get_inner_join_str(similarity_table, samples_table, 'sample1', 'sample_id')
+    table1 = '{} AS (SELECT {} FROM {})'.format(temp_var1, fields1, inner_join1)
+    fields2 = 'sample1, sample1_type,sample2, analysis_method as sample2_type, len, similarity_score'
+    inner_join2 = get_inner_join_str(temp_var1, samples_table, 'sample2', 'sample_id')
+    table2 = '{} AS (SELECT {} FROM {})'.format(table_name, fields2, inner_join2)
+    return '{}, {}'.format(table1, table2)
+
+
+def get_specific_sample_types_string(pairs_list, field1, field2):
+    my_str = '({}=\'{}\' AND {}=\'{}\')'.format(field1, pairs_list[0][0], field2,pairs_list[0][1])
+    for p in pairs_list[1:]:
+        my_str = '{} OR {}'.format(my_str, '({}=\'{}\' AND {}=\'{}\')'.format(field1, p[0], field2, p[1]))
+    return my_str
+
+
+def get_wgs_haplotype_similarity(host, data_version, pairs_list, table_name):
+    pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
+    hap_sim_types_name = 'hap_sim_types_table'
+    hap_sim_types_str = get_haplotype_similarity_with_analysis_types(host, data_version, hap_sim_types_name)
+    query = '{}, {} as (SELECT len,similarity_score FROM {} WHERE {})'.format(hap_sim_types_str, table_name, hap_sim_types_name, pairs_str)
+    return query
+
+
+
+def get_median_length_of_hap_similarity(host, data_version, pairs_list, min_score):
+    temp_table_name = 'score_and_len_from_hap_sim_table'
+    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    query = 'WITH {} SELECT MEDIAN(len) OVER () FROM {} WHERE similarity_score >= {} LIMIT 1;'.format(temp_tables, temp_table_name, min_score)
+    a = get_all_results(host, query)
+    assert a is not None
+    if len(a) == 0:
+        return None
+    assert a[0] is not None
+    assert a[0][0] is not None
+    return int(a[0][0])
+
+
+def get_average_length_of_hap_similarity(host, data_version, pairs_list, min_score):
+    temp_table_name = 'score_and_len_from_hap_sim_table'
+    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    query = 'WITH {} SELECT AVG(len) FROM {} where similarity_score >= {};'.format(temp_tables, temp_table_name, min_score)
+    a = get_all_results(host, query)
+    assert a is not None
+    assert len(a) > 0
+    assert a[0] is not None
+    if a[0][0] is None:
+        return None
+    else:
+        return int(a[0][0])
+
+
+def compute_sim_len_histogram(host, data_version, pairs_list, min_score):
+    temp_table_name = 'score_and_len_from_hap_sim_table'
+    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    query = 'WITH {} SELECT COUNT(*), ROUND(log(len),1) as sc FROM {} where similarity_score >= {} GROUP BY sc ORDER BY sc;'.format(temp_tables, temp_table_name,
+                                                                                   min_score)
+
+    rows = get_all_results(host, query)
+    df = pd.DataFrame.from_records(rows, columns=['Count', 'Length']).sort_values(by=['Length'])
+    height = df['Count']
+    bars = df['Length']
+    y_pos = np.arange(len(bars))
+    plt.figure()
+    plt.bar(y_pos, height)
+    plt.xticks(y_pos, bars)
+    plt.show()
+
+
+def write_all_pairwise_similarities(host, data_version, pairs_list, threshold, out_name):
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    temp_table1 = 'temp_var1 AS (SELECT sample1, analysis_method as sample1_type,sample2,' \
+                  'end_position-start_position as len, similarity_score FROM {} INNER JOIN {} ON ' \
+                  '{}.sample1={}.sample_id)'.format(similarity_table, samples_table, similarity_table, samples_table)
+    temp_table2 = 'temp_var2 AS (SELECT sample1, sample1_type,sample2, analysis_method as sample2_type, len, ' \
+                  'similarity_score FROM temp_var1 INNER JOIN {} ON ' \
+                  'temp_var1.sample2={}.sample_id)'.format(samples_table, samples_table)
+    pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
+    temp_table3  = 'temp_var3 as (SELECT  len , similarity_score,sample1, sample2 FROM temp_var2 where {})'.format(pairs_str)
+    query = 'WITH {},{},{} SELECT sample1, sample2, SUM(len) FROM temp_var3 ' \
+            'WHERE similarity_score>={} GROUP BY sample1, sample2;'.format(temp_table1, temp_table2, temp_table3, threshold)
+    #out_name = '{}/similarity_length_per_comparison.csv'.format(os.getcwd())
+    rows = get_all_results(host, query)
+    df = pd.DataFrame.from_records(rows, columns=['sample1','sample2', 'total similarity length'])
+    print('average similarity length of comparisons is {}'.format(df['total similarity length'].mean()))
+    df.to_csv(out_name, index=False)
+
+
+def get_genome_size(host, data_version):
+    pivot_name = get_table_name(host, data_version, 'PIVOT_SAMPLE')
+    chr_len_table = get_table_name(host, data_version, 'CHROMOSOME_LENGTH')
+    query = 'SELECT SUM(chromosome_length) FROM {} where sample=\'{}\';'.format(chr_len_table, pivot_name)
+    rows = get_all_results(host, query)
+    genome_size = int(rows[0][0])
+    return genome_size
+
+
+
+#data_version = 'public_soy_v2_03'
 #host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
+#get_genome_size(host, data_version)
+
+
+
+#sample_pair_types = []
+#sample_pair_types.append(['whole_genome_sequencing', 'whole_genome_sequencing'])
+#sample_pair_types.append(['applied_reference_genome', 'whole_genome_sequencing'])
+#
+
+#my_query = 'WITH wgs_samples as (select sample_id from public_soy_v2_03_samples_view where analysis_method=\'applied_reference_genome\' or analysis_method=\'whole_genome_sequencing\'), sim_1 as (select sample1,sample2,chromosome_id,start_position,end_position,similarity_score,identical_by_state from public_soy_v2_03_haplotypes_similarity_view inner join wgs_samples on public_soy_v2_03_haplotypes_similarity_view.sample1=wgs_samples.sample_id) , sim_2 as (select * from sim_1 inner join wgs_samples on sim_1.sample2=wgs_samples.sample_id) select sample1,sample2,chromosome_id,start_position,end_position,similarity_score,identical_by_state from sim_2 where identical_by_state=\'t\' and chromosome_id=1 and start_position<=10000000 and end_position>=10000000;'
+
+
+
+
+#pairs_list = []
+#pairs_list.append(['whole_genome_sequencing', 'whole_genome_sequencing'])
+#pairs_list.append(['applied_reference_genome', 'whole_genome_sequencing'])
+#pairs_list.append(['whole_genome_sequencing', 'applied_reference_genome'])
+#pairs_list.append(['applied_reference_genome', 'applied_reference_genome'])
+#
+#temp_table_name = 'score_and_len_from_hap_sim_table'
+#
+
+#sim_table = get_haplotype_similarity_with_analysis_types(host, data_version, temp_table_name)
+#print(sim_table)
+#pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
+#print(pairs_str)
+#print("WITH {}, arg_wgs_sim as (select * from {} where {}) select * from arg_wgs_sim limit 10;".format(sim_table, temp_table_name, pairs_str))
+#print(pairs_str)
+
 #data_version='maize_benchmark_test_fix_mkrs_919_01'
+#write_all_pairwise_similarities(host, data_version, pairs_list, 0.99)
+#s = get_average_length_of_hap_similarity(host, data_version, pairs_list, 0)
+#print (s)
+
