@@ -221,12 +221,12 @@ def get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version, t
     return temp_tables_string
 
 
-def write_samples_haps_count_to_file(host, data_version):
+def write_samples_haps_count_to_file(host, data_version, out_name):
     mapped_table_name = 'mapped_hap_samples'
     haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,'temp_table1', 'temp_table2', mapped_table_name)
     full_query = 'WITH {} SELECT sample_id, analysis_method, count(haplotype_idx) FROM {} GROUP BY sample_id, analysis_method;'.format(haps_samples_mapped_arg_wgs, mapped_table_name)
     rows = get_all_results(host, full_query)
-    out_name = '{}/{}_haps_per_sample.csv'.format(os.getcwd(), data_version)
+    #out_name = '{}/{}_haps_per_sample.csv'.format(os.getcwd(), data_version)
     df = pd.DataFrame(rows, columns =['sample id', 'analysis_method', 'haps count'])
     df.to_csv(out_name, index=False)
     print("saved arg_wgs_full_haps_count to {}".format(out_name))
@@ -242,7 +242,7 @@ def flat_freq_dataframe_to_matrix(df):
     return temp_df1.fillna(0)
 
 
-def write_samples_haps_freq_to_file(host, data_version):
+def write_samples_haps_freq_to_file(host, data_version, out_name):
     mapped_table_name = 'mapped_hap_samples'
     haps_freq_table_name = 'haps_freq'
     haps_samples_mapped_arg_wgs = get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version,
@@ -253,7 +253,7 @@ def write_samples_haps_freq_to_file(host, data_version):
     full_query = 'WITH {}, {} SELECT sample_id,freq,count(haps_freq.haplotype_idx) FROM {} GROUP BY sample_id,freq ORDER BY sample_id,freq;'.format(
         haps_samples_mapped_arg_wgs, haps_freq, inner_join_str)
     rows = get_all_results(host, full_query)
-    out_name = '{}/{}_haps_freq_per_sample.csv'.format(os.getcwd(), data_version)
+    #out_name = '{}/{}_haps_freq_per_sample.csv'.format(os.getcwd(), data_version)
     df = pd.DataFrame(rows, columns=['sample id', 'hap freq', 'count'])
     mat_df = flat_freq_dataframe_to_matrix(df)
     mat_df.to_csv(out_name, index=False)
