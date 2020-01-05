@@ -334,22 +334,24 @@ def compute_sim_len_histogram(host, data_version, pairs_list, min_score):
     plt.show()
 
 
-def total_similarity(host, data_version, pairs_list):
-    temp_table_name = 'score_and_len_from_hap_sim_table'
-    sim_table = get_haplotype_similarity_with_analysis_types(host, data_version, temp_table_name)
+def write_all_pairwise_similarities(host, data_version, pairs_list, threshold, out_name):
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    temp_table1 = 'temp_var1 AS (SELECT sample1, analysis_method as sample1_type,sample2,' \
+                  'end_position-start_position as len, similarity_score FROM {} INNER JOIN {} ON ' \
+                  '{}.sample1={}.sample_id)'.format(similarity_table, samples_table, similarity_table, samples_table)
+    temp_table2 = 'temp_var2 AS (SELECT sample1, sample1_type,sample2, analysis_method as sample2_type, len, ' \
+                  'similarity_score FROM temp_var1 INNER JOIN {} ON ' \
+                  'temp_var1.sample2={}.sample_id)'.format(samples_table, samples_table)
     pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
-    query = 'WITH {} SELECT  len , sample1, sample2 FROM {} where {} group by sample1, sample2;'.format(sim_table, temp_table_name, pairs_str)
-    print(query)
-
-    #out_name = '{}/similarity_length.csv'.format(os.getcwd())
-    #similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
-    #sql_query = "SELECT SUM(end_position-start_position) AS len , sample1, sample2 FROM {} where " \
-    #            "identical_by_state='t' group by sample1, sample2;".format(similarity_table)
-    #rows = get_all_results(host, sql_query)
-    #df = pd.DataFrame.from_records(rows, columns=['len','sample1','sample2'])
-    #df.to_csv(out_name, index=False)
-    #return df['len'].mean()
-
+    temp_table3  = 'temp_var3 as (SELECT  len , similarity_score,sample1, sample2 FROM temp_var2 where {})'.format(pairs_str)
+    query = 'WITH {},{},{} SELECT sample1, sample2, SUM(len) FROM temp_var3 ' \
+            'WHERE similarity_score>={} GROUP BY sample1, sample2;'.format(temp_table1, temp_table2, temp_table3, threshold)
+    #out_name = '{}/similarity_length_per_comparison.csv'.format(os.getcwd())
+    rows = get_all_results(host, query)
+    df = pd.DataFrame.from_records(rows, columns=['sample1','sample2', 'total similarity length'])
+    print('writing results to {}'.format(out_name))
+    df.to_csv(out_name, index=False)
 
 def asd(pairs_list):
     pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
@@ -360,15 +362,31 @@ def asd(pairs_list):
 #sample_pair_types = []
 #sample_pair_types.append(['whole_genome_sequencing', 'whole_genome_sequencing'])
 #sample_pair_types.append(['applied_reference_genome', 'whole_genome_sequencing'])
+#
 
-pairs_list = []
-pairs_list.append(['whole_genome_sequencing', 'whole_genome_sequencing'])
-pairs_list.append(['applied_reference_genome', 'whole_genome_sequencing'])
+#my_query = 'WITH wgs_samples as (select sample_id from public_soy_v2_03_samples_view where analysis_method=\'applied_reference_genome\' or analysis_method=\'whole_genome_sequencing\'), sim_1 as (select sample1,sample2,chromosome_id,start_position,end_position,similarity_score,identical_by_state from public_soy_v2_03_haplotypes_similarity_view inner join wgs_samples on public_soy_v2_03_haplotypes_similarity_view.sample1=wgs_samples.sample_id) , sim_2 as (select * from sim_1 inner join wgs_samples on sim_1.sample2=wgs_samples.sample_id) select sample1,sample2,chromosome_id,start_position,end_position,similarity_score,identical_by_state from sim_2 where identical_by_state=\'t\' and chromosome_id=1 and start_position<=10000000 and end_position>=10000000;'
+
+
+
+
+#pairs_list = []
+#pairs_list.append(['whole_genome_sequencing', 'whole_genome_sequencing'])
+#pairs_list.append(['applied_reference_genome', 'whole_genome_sequencing'])
 #pairs_list.append(['whole_genome_sequencing', 'applied_reference_genome'])
 #pairs_list.append(['applied_reference_genome', 'applied_reference_genome'])
-host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
-data_version='maize_benchmark_test_fix_mkrs_919_01'
-total_similarity(host, data_version, pairs_list)
+#host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
+#temp_table_name = 'score_and_len_from_hap_sim_table'
+#data_version = 'public_soy_v2_03'
+
+#sim_table = get_haplotype_similarity_with_analysis_types(host, data_version, temp_table_name)
+#print(sim_table)
+#pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
+#print(pairs_str)
+#print("WITH {}, arg_wgs_sim as (select * from {} where {}) select * from arg_wgs_sim limit 10;".format(sim_table, temp_table_name, pairs_str))
+#print(pairs_str)
+
+#data_version='maize_benchmark_test_fix_mkrs_919_01'
+#write_all_pairwise_similarities(host, data_version, pairs_list, 0.99)
 #s = get_average_length_of_hap_similarity(host, data_version, pairs_list, 0)
 #print (s)
 
