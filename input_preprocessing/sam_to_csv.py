@@ -14,11 +14,13 @@ def get_next_sam_line_as_list(f):
                 return arr
 
 def handle_marker_alignment(allele1_aln, allele2_aln, out_include, out_exclude):
+    assert allele1_aln[1] == "0" or allele1_aln[1] == "16" or allele1_aln[1] == "4", allele1_aln[1]
+    assert allele2_aln[1] == "0" or allele2_aln[1] == "16" or allele2_aln[1] == "4", allele2_aln[1]
     same_chromosome = allele1_aln[2] == allele2_aln[2]
     seq_proximity = abs(int(allele1_aln[3]) - int(allele1_aln[3])) <= max_dist_alleles_alignment
     my_score = min(int(allele1_aln[4]), int(allele2_aln[4]))
     scores_are_high = my_score >= min_score_threshold
-    same_seq = ''
+#    same_flag = ''
 
 
 
