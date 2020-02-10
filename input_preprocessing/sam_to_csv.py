@@ -20,6 +20,11 @@ def handle_marker_alignment(allele1_aln, allele2_aln, out_include, out_exclude):
     seq_proximity = abs(int(allele1_aln[3]) - int(allele1_aln[3])) <= max_dist_alleles_alignment
     my_score = min(int(allele1_aln[4]), int(allele2_aln[4]))
     scores_are_high = my_score >= min_score_threshold
+    if same_chromosome and seq_proximity and scores_are_high:
+        out_include.write("")
+        print('yes')
+    else:
+        print('no')
 #    same_flag = ''
 
 
@@ -31,6 +36,9 @@ filtered_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/filtered.csv'
 sam_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/a.sam'
 f = open(sam_file, 'r')
 csv = open(csv_file,'w')
+csv_header = "marker_id,genome_id,chr_id,chr_start,chr_end,chr_strand,alg_sig,alg_map_quality,seqA,seqB,isSeqA_informative,isSeqB_informative"
+csv.write("{}\n".format(csv_header))
+
 filtered = open(filtered_file,'w')
 allele1_aln = get_next_sam_line_as_list(f)
 while allele1_aln is not None:
