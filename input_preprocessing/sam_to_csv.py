@@ -29,29 +29,53 @@ def handle_marker_alignment(allele1_aln, allele2_aln, out_include, out_exclude):
 
 
 
+def chech_if_ref_has_index(ref_fasta):
+    ref_fasta_suffix = ref_fasta.split('.')[-1]
+    assert ref_fasta_suffix == "fasta" or ref_fasta_suffix == "fa", "bad format ({}), expecting fa/fasta".format(
+        ref_fasta_suffix)
+    index_file_name = "{}.bwt".format(ref_fasta)
+    has_index = os.path.exists(index_file_name)
+    return has_index
 
 
-csv_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/out.csv'
-filtered_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/filtered.csv'
-sam_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/a.sam'
-f = open(sam_file, 'r')
-csv = open(csv_file,'w')
-csv_header = "marker_id,genome_id,chr_id,chr_start,chr_end,chr_strand,alg_sig,alg_map_quality,seqA,seqB,isSeqA_informative,isSeqB_informative"
-csv.write("{}\n".format(csv_header))
+def verify_indexing_of_fasta(ref_fasta):
+    has_index = chech_if_ref_has_index(ref_fasta)
+    if has_index:
+        print("found ref index")
+    else:
+        print("missing ref index. Indexing..")
+        os.system("bwa index {}".format(ref_fasta))
+    assert chech_if_ref_has_index(ref_fasta)
 
-filtered = open(filtered_file,'w')
-allele1_aln = get_next_sam_line_as_list(f)
-while allele1_aln is not None:
-    allele2_aln = get_next_sam_line_as_list(f)
-    probe_id1 = allele1_aln[0]
-    probe_id2 = allele2_aln[0]
-    assert probe_id1[-2:] == '_1'
-    assert probe_id2[-2:] == '_2'
-    assert probe_id1[:-2] == probe_id2[:-2]
-    handle_marker_alignment(allele1_aln, allele2_aln, csv_file, filtered_file)
-    allele1_aln = get_next_sam_line_as_list(f)
-f.close()
-csv.close()
-filtered.close()
+
+def 
+
+import os
+reads_fasta = '/prodslow/testing/ariel/genomagic_qa/SGU-29/nam_6k_design.fasta'
+ref_fasta = '/prodslow/testing/ariel/genomagic_qa/SGU-29/williams82__ver100.fasta'
+verify_indexing_of_fasta(ref_fasta)
+
+#csv_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/out.csv'
+#filtered_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/filtered.csv'
+#sam_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/a.sam'
+#f = open(sam_file, 'r')
+#csv = open(csv_file,'w')
+#csv_header = "marker_id,genome_id,chr_id,chr_start,chr_end,chr_strand,alg_sig,alg_map_quality,seqA,seqB,isSeqA_informative,isSeqB_informative"
+#csv.write("{}\n".format(csv_header))
+
+#filtered = open(filtered_file,'w')
+#allele1_aln = get_next_sam_line_as_list(f)
+#while allele1_aln is not None:
+#    allele2_aln = get_next_sam_line_as_list(f)
+#    probe_id1 = allele1_aln[0]
+#    probe_id2 = allele2_aln[0]
+#    assert probe_id1[-2:] == '_1'
+#    assert probe_id2[-2:] == '_2'
+#    assert probe_id1[:-2] == probe_id2[:-2]
+#    handle_marker_alignment(allele1_aln, allele2_aln, csv, filtered)
+#    allele1_aln = get_next_sam_line_as_list(f)
+#f.close()
+#csv.close()
+#filtered.close()
 
 
