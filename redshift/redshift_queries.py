@@ -36,7 +36,7 @@ def get_table_name(host, data_version, table_type):
     return row[0]
 
 
-def get_sql_quey_as_data_frame(host, query, column_names):
+def get_sql_query_as_data_frame(host, query, column_names):
     rows = get_all_results(host, query)
     df = pd.DataFrame(rows, columns=column_names)
     return df
