@@ -191,7 +191,7 @@ def len_histogram(host, data_version):
     y_pos = np.arange(len(bars))
     plt.figure()
     plt.bar(y_pos, height)
-    plt.xticks(y_pos, bars)
+    #plt.xticks(y_pos, bars)
     plt.show()
 
 
