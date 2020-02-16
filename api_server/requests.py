@@ -1,6 +1,11 @@
 import urllib3
 import pandas as pd
-#import similarities_comparison
+import sys
+genomagic_qa_repo_path = '/'.join(sys.argv[0].split('/')[:-2])
+sys.path.append(genomagic_qa_repo_path)
+import vcf_utils.vcf_reader as vr
+
+
 def register_data_version_command(host, dv_name):
     url = 'http://{}/genomagic-api/v1/data-versions/{}'.format(host, dv_name)
     return 'curl -X PUT \'{}\''.format(url)
@@ -25,15 +30,18 @@ def snp_marker_request(api_server, data_version, samples, locations):
     url = "http://{}:8080/genomagic-api/v1/sync-job/SNP_MARKERS_COLOR_VCF.vcf?dataVersion={}&samplesQuery={}" \
           "&locations={}&outputSamples={}".format(api_server, data_version, samples_query, locations, samples)
     my_data = api_call_request(url)
-    print(my_data)
+    lines = my_data[2:-2].split("\n")
+    return lines
 
 
-def snp_marker_request(api_server, data_version, samples, locations):
+def haplotype_marker_request(api_server, data_version, samples, locations):
     samples_query = samples.replace(",", "+OR+")
-    url = "http://{}:8080/genomagic-api/v1/sync-job/SNP_MARKERS_COLOR_VCF.vcf?dataVersion={}&samplesQuery={}" \
+    url = "http://{}:8080/genomagic-api/v1/sync-job/HAPLOTYPE_MARKERS_COLOR_VCF.vcf?dataVersion={}&samplesQuery={}" \
           "&locations={}&outputSamples={}".format(api_server, data_version, samples_query, locations, samples)
+    print(url)
     my_data = api_call_request(url)
-    print(my_data)
+    lines = my_data[2:-2].split("\n")
+    return lines
 
 
 def genetic_distance_request(api_server, data_version, samples, locations):
@@ -57,4 +65,16 @@ def get_raw_similarities_between_multiple_sampels(api_server, data_version, samp
     hap_sim['start'] = hap_sim.start.astype(int)
     hap_sim['end'] = hap_sim.end.astype(int)
     return hap_sim
+
+
+def get_snp_markers_as_dataframe(api_server, data_version, samples, locations, max_haps_num):
+    vcf_lines_list = snp_marker_request(api_server, data_version, samples, locations)
+    return vr.read_snp_vcf_from_list(vcf_lines_list, max_haps_num)
+
+
+def get_haplotype_markers_as_dataframe(api_server, data_version, samples, locations, max_haps_num):
+    vcf_lines_list = haplotype_marker_request(api_server, data_version, samples, locations)
+    return vr.read_hap_vcf_from_list(vcf_lines_list, max_haps_num)
+
+
 
