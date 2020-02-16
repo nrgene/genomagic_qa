@@ -37,12 +37,12 @@ def get_similar_regions_without_ignored_markers(seq, min_p, min_len, trim_len):
 
 
 
-data = [0,0,1,1,1,1,0,0,1, 1, 1, 1, 0,0,1,1,1]
-x1 = get_sliding_window_average(data, 3)
-true_ind = np.where(x1 >= 0.9)[0]
-print(true_ind)
-true_regions = separate_regions_by_gap(true_ind)
-print(true_regions)
+#data = [0,0,1,1,1,1,0,0,1, 1, 1, 1, 0,0,1,1,1]
+#x1 = get_sliding_window_average(data, 3)
+#true_ind = np.where(x1 >= 0.9)[0]
+#print(true_ind)
+#true_regions = separate_regions_by_gap(true_ind)
+#print(true_regions)
 #x = separate_regions_by_gap(data)
 #x = get_sliding_window_average(data, 3)
 #print(x[2:6])
