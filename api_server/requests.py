@@ -22,6 +22,11 @@ def add_samples_group_command(samples_list, group_name, host, dv_name):
 def api_call_request(url):
     http = urllib3.PoolManager()
     r = http.request('GET', url)
+    if r.status == 202:
+        print("request didn't finish yet")
+        assert r.status == 200, r.data
+    elif r.status != 200:
+        assert r.status == 200, r.data
     return str(r.data).replace("\\t", "\t").replace("\\n", "\n")
 
 
