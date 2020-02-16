@@ -12,3 +12,4 @@ dependencies:
   - seaborn
   - psycopg2
   - scikit-learn
+  - urllib3
