@@ -363,6 +363,64 @@ def get_genome_size(host, data_version):
     return genome_size
 
 
+def get_similarities_in_position(host, data_version, chromosome, position, threshold):
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    query = 'with similar_samples as (select sample1, sample2 from {} where similarity_score>={} and chromosome_id={}' \
+            ' and start_position <= {} and end_position >= {}), wgs_samples as (select sample_id from {} ' \
+            'where analysis_method=\'applied_reference_genome\' or analysis_method=\'whole_genome_sequencing\'), ' \
+            'temp_var1 as (select sample1, sample2 from similar_samples inner join wgs_samples on sample1=sample_id), '\
+            'temp_var2 as (select sample1,sample2 from temp_var1 inner join wgs_samples on sample2=sample_id) ' \
+            'select * from temp_var2;'.format(similarity_table, threshold, chromosome, position, position, samples_table)
+
+    print(query)
+    rows = get_all_results(host, query)
+    df = pd.DataFrame.from_records(rows, columns=['sample1', 'sample2'])
+    return df
+
+
+def get_samples_filtered_by_analysis_types(host, data_version, analysis_types_list):
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    expressions_list = ['analysis_method=\'{}\''.format(s) for s in analysis_types_list]
+    filter_string = ' OR '.join(expressions_list)
+    return 'SELECT * FROM {} WHERE {}'.format(samples_table, filter_string)
+
+
+def get_freq(host, data_version):
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    hap_samples_table = get_table_name(host, data_version,'HAPLOTYPE_SAMPLES')
+    hap_info = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
+    sample_types = ['whole_genome_sequencing', 'whole_genome_sequencing']
+    wgs_samples_sub_query = get_samples_filtered_by_analysis_types(host, data_version, sample_types)
+    # step1: sub_table1 is the arg/wgs samples
+    sub_table1 = 'temp_var1 AS ({})'.format(wgs_samples_sub_query)
+    # step2: sub_table2 is hap samples table only for the arg/wgs samples
+    sub_table2 = 'temp_var2 AS (SELECT haplotype_idx,temp_var1.sample_id FROM {})'.format(
+        get_inner_join_str('temp_var1', hap_samples_table, 'sample_id', 'sample_id'))
+    # step3: sub_table3 are the mapped haplotypes
+    sub_table3 = 'temp_var3 AS (SELECT haplotype_idx FROM {} WHERE chromosome > 0)'.format(hap_info)
+    # step4: sub_table4 are the mapped haplotypes and the arg/wgs samples
+    sub_table4 = 'temp_var4 AS (SELECT sample_id,temp_var2.haplotype_idx FROM {})'.format(
+        get_inner_join_str('temp_var2', 'temp_var3', 'haplotype_idx', 'haplotype_idx'))
+    # step5: sub_table4 are the mapped haplotypes and the arg/wgs samples
+    sub_table5 = 'temp_var5 AS (SELECT haplotype_idx,count(sample_id) as freq FROM temp_var4 GROUP BY haplotype_idx)'
+    sub_table6 = 'temp_var6 AS (SELECT freq,count(haplotype_idx) FROM temp_var5 GROUP BY freq)'
+    merged_sub_tables = ', '.join([sub_table1, sub_table2, sub_table3, sub_table4, sub_table5, sub_table6])
+    query ='WITH {} SELECT freq,count FROM temp_var6 ORDER BY freq;'.format(merged_sub_tables)
+    return get_sql_query_as_data_frame(host, query, ['freq', 'count'])
+
+
+def get_similarities_of_samples(host, data_version, samples, chromosome, min_size, min_score):
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    sample_group_string = '({})'.format(','.join(['\'{}\''.format(x) for x in samples]))
+    query = 'SELECT sample1,sample2,start_position,end_position,similarity_score FROM {} WHERE sample1 IN {} ' \
+            'AND sample2 IN {} AND end_position-start_position > {} AND similarity_score >= {} AND chromosome_id={};'\
+        .format(similarity_table, sample_group_string, sample_group_string, min_size, min_score, chromosome)
+    return get_sql_query_as_data_frame(host, query, ['sample1', 'sample2', 'start_position', 'end_position',
+                                                    'similarity_score'])
+
+
 
 #data_version = 'public_soy_v2_03'
 #host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
