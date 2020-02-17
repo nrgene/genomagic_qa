@@ -4,7 +4,6 @@ import pandas as pd
 working_dir_path = os.getcwd()
 genomagic_qa_repo_path = '/'.join(working_dir_path.split('/')[:-1])
 sys.path.append(genomagic_qa_repo_path)
-import api_server.requests as ar
 
 
 def advance_in_list(my_list, prev_element_end):
@@ -153,11 +152,16 @@ def compare_dataframes_of_similarities(df1, df2):
 
 def get_subset_of_similarities(hap_sim1, sample1, sample2):
     I = ((hap_sim1['s1'] == sample1) & (hap_sim1['s2'] == sample2)) | ((hap_sim1['s2'] == sample1) & (hap_sim1['s1'] == sample2))
-    df1 = hap_sim1.loc[I,['chr', 'start', 'end']]
-    return df1.astype(int).drop_duplicates()
+    if I.sum() == 0:
+        return pd.DataFrame(columns=['chr', 'start', 'end'])
+    else:
+        df1 = hap_sim1.loc[I,['chr', 'start', 'end']]
+        return df1.astype(int).drop_duplicates()
 
 
 def get_similarities_comparison_by_samples_pair(hap_sim1, hap_sim2, samples):
+    assert set(['s1', 's2', 'chr', 'start', 'end']).issubset(hap_sim1.columns), hap_sim1.columns
+    assert set(['s1', 's2', 'chr', 'start', 'end']).issubset(hap_sim2.columns), hap_sim2.columns
     arr = []
     samples_num = len(samples)
     for i in range(samples_num):
@@ -180,23 +184,11 @@ def compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samp
     return [hap_sim1_uniq_len, hap_sim2_uniq_len, shared_len]
 
 
-#api_server = 'api-dev.nrgene.local:8080'
-#dv1='maize_benchmark_test_fix_mkrs_919_03'
-#dv2 = 'maize_benchmark_only_arg_wgs'
-#dv3 = 'dm_gm_public_maize_232'
-#samples_wgs=['b73v4__ver100', 'cml247__ver100', 'ep1_v2__ver100', 'w22__ver100', 'ki3__ver110', 'f7_v2__ver100', 'mo17__ver100']
-#samples_snp = ['b73', 'cml247', 'ep1', 'w22', 'ki3', 'f7', 'mo17']
-#n = len(samples_wgs)
-#my_dict = {}
-#for i in range(n):
-#    my_dict[samples_snp[i]] = samples_wgs[i]
-#hap_sim1 = ar.get_raw_similarities_between_multiple_sampels(api_server, dv1, samples_wgs, "1,2")
-#hap_sim2 = ar.get_raw_similarities_between_multiple_sampels(api_server, dv2, samples_wgs, "1,2")
-#snp_sim = ar.get_raw_similarities_between_multiple_sampels(api_server, dv3, samples_snp, "1,2").replace(my_dict)
-#[fn1, fp1, intersect1] = compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, snp_sim, samples_wgs)
-#[fn2, fp2, intersect2] = compute_similarity_match_for_multiple_sampels_in_df(hap_sim2, snp_sim, samples_wgs)
-#print("{} {} {}".format(fn1/1000000, fp1/1000000, intersect1/1000000))
-#print("{} {} {}".format(fn2/1000000, fp2/1000000, intersect2/1000000))
+
+
+
+
+
 
 #[fn1, fp1, intersect1] = compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samples)
 #print("{}, {}, {}".format(fn1/1000000, fp1/1000000, intersect1/1000000))
