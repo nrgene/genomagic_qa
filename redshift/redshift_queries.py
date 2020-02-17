@@ -1,9 +1,15 @@
+import sys
+genomagic_qa_repo_path = '/'.join(sys.argv[0].split('/')[:-2])
+sys.path.append(genomagic_qa_repo_path)
+import redshift.query_builder as qb
+
 import psycopg2
 import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+
 #logging.getLogger().setLevel(logging.INFO)
 
 def create_connection_cursor(host):
@@ -158,8 +164,6 @@ def hist_count2(host, data_version):
     plt.show()
 
 
-def get_inner_join_str(table1, table2, field1, field2):
-    return '{} INNER JOIN {} ON {}.{}={}.{}'.format(table1, table2, table1, field1, table2, field2)
 
 
 def get_hap_sim_of_hap_samples_sub_talble_string(host, data_version):
@@ -171,9 +175,9 @@ def get_hap_sim_of_hap_samples_sub_talble_string(host, data_version):
     samples_table = get_table_name(host, data_version, 'SAMPLES')
     samples_with_haps = 'analysis_method=\'applied_reference_genome\' OR analysis_method=\'whole_genome_sequencing\' OR analysis_method=\'genotyping_by_sequencing\''
     arg_wgs_sub_table = 'wgs_samples AS (SELECT sample_id FROM {} WHERE  {})'.format(samples_table, samples_with_haps)
-    inner_join_on_sample1 = get_inner_join_str ('wgs_samples', similarity_table, 'sample_id', 'sample1')
+    inner_join_on_sample1 = qb.get_inner_join_str ('wgs_samples', similarity_table, 'sample_id', 'sample1')
     hap_sim_sample1_wgs = 'hap_sim1 AS (SELECT * from {})'.format(inner_join_on_sample1)
-    inner_join_on_sample2 = get_inner_join_str ('wgs_samples', 'hap_sim1', 'sample_id', 'sample2')
+    inner_join_on_sample2 = qb.get_inner_join_str ('wgs_samples', 'hap_sim1', 'sample_id', 'sample2')
     hap_sim_sample2_wgs = 'hap_sim2 AS (SELECT similarity_score, end_position-start_position as len FROM {})'.format(inner_join_on_sample2)
     return '{},\n{},\n{}'.format(arg_wgs_sub_table, hap_sim_sample1_wgs, hap_sim_sample2_wgs)
 
@@ -212,9 +216,9 @@ def get_mapped_haplotype_samples_table_only_arg_wgs_string(host, data_version, t
                                                                                            'whole_genome_sequencing'])
     haplotypes_samples_table = get_table_name(host, data_version, 'HAPLOTYPE_SAMPLES')
     haplotypes_info_table = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
-    inner_join_str = get_inner_join_str(haplotypes_samples_table, temp_table_name1, 'sample_id', 'sample_id')
+    inner_join_str = qb.get_inner_join_str(haplotypes_samples_table, temp_table_name1, 'sample_id', 'sample_id')
     table_2_content = 'SELECT haplotype_idx, {}.sample_id, analysis_method FROM {}'.format(temp_table_name1, inner_join_str)
-    inner_join_str2 = get_inner_join_str(haplotypes_info_table, temp_table_name2, 'haplotype_idx', 'haplotype_idx')
+    inner_join_str2 = qb.get_inner_join_str(haplotypes_info_table, temp_table_name2, 'haplotype_idx', 'haplotype_idx')
     table_3_content = 'SELECT sample_id,analysis_method,{}.haplotype_idx from {} WHERE chromosome > 0'.format(temp_table_name2, inner_join_str2)
     temp_tables_string = '{} as ({}), {} as ({}), {} as ({})'.format(temp_table_name1, table_1_content, temp_table_name2,
                                                                   table_2_content, temp_table_name3, table_3_content)
@@ -249,7 +253,7 @@ def write_samples_haps_freq_to_file(host, data_version, out_name):
                                                                                          'temp_table1', 'temp_table2',
                                                                                          mapped_table_name)
     haps_freq = '{} as (select count(*) as freq,haplotype_idx from {} group by haplotype_idx)'.format(haps_freq_table_name, mapped_table_name)
-    inner_join_str = get_inner_join_str(haps_freq_table_name, mapped_table_name, 'haplotype_idx', 'haplotype_idx')
+    inner_join_str = qb.get_inner_join_str(haps_freq_table_name, mapped_table_name, 'haplotype_idx', 'haplotype_idx')
     full_query = 'WITH {}, {} SELECT sample_id,freq,count(haps_freq.haplotype_idx) FROM {} GROUP BY sample_id,freq ORDER BY sample_id,freq;'.format(
         haps_samples_mapped_arg_wgs, haps_freq, inner_join_str)
     rows = get_all_results(host, full_query)
@@ -261,38 +265,16 @@ def write_samples_haps_freq_to_file(host, data_version, out_name):
     return df
 
 
-def get_haplotype_similarity_with_analysis_types(host, data_version, table_name):
-    temp_var1 = 'temp_var1'
-    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
-    samples_table = get_table_name(host, data_version, 'SAMPLES')
-    fields1 = 'sample1, analysis_method as sample1_type,sample2,end_position-start_position as len, similarity_score'
-    inner_join1 = get_inner_join_str(similarity_table, samples_table, 'sample1', 'sample_id')
-    table1 = '{} AS (SELECT {} FROM {})'.format(temp_var1, fields1, inner_join1)
-    fields2 = 'sample1, sample1_type,sample2, analysis_method as sample2_type, len, similarity_score'
-    inner_join2 = get_inner_join_str(temp_var1, samples_table, 'sample2', 'sample_id')
-    table2 = '{} AS (SELECT {} FROM {})'.format(table_name, fields2, inner_join2)
-    return '{}, {}'.format(table1, table2)
 
 
-def get_specific_sample_types_string(pairs_list, field1, field2):
-    my_str = '({}=\'{}\' AND {}=\'{}\')'.format(field1, pairs_list[0][0], field2,pairs_list[0][1])
-    for p in pairs_list[1:]:
-        my_str = '{} OR {}'.format(my_str, '({}=\'{}\' AND {}=\'{}\')'.format(field1, p[0], field2, p[1]))
-    return my_str
 
 
-def get_wgs_haplotype_similarity(host, data_version, pairs_list, table_name):
-    pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
-    hap_sim_types_name = 'hap_sim_types_table'
-    hap_sim_types_str = get_haplotype_similarity_with_analysis_types(host, data_version, hap_sim_types_name)
-    query = '{}, {} as (SELECT len,similarity_score FROM {} WHERE {})'.format(hap_sim_types_str, table_name, hap_sim_types_name, pairs_str)
-    return query
 
 
 
 def get_median_length_of_hap_similarity(host, data_version, pairs_list, min_score):
     temp_table_name = 'score_and_len_from_hap_sim_table'
-    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    temp_tables = qb.get_length_score_by_sample_types(host, data_version, pairs_list, temp_table_name)
     query = 'WITH {} SELECT MEDIAN(len) OVER () FROM {} WHERE similarity_score >= {} LIMIT 1;'.format(temp_tables, temp_table_name, min_score)
     a = get_all_results(host, query)
     assert a is not None
@@ -305,7 +287,9 @@ def get_median_length_of_hap_similarity(host, data_version, pairs_list, min_scor
 
 def get_average_length_of_hap_similarity(host, data_version, pairs_list, min_score):
     temp_table_name = 'score_and_len_from_hap_sim_table'
-    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
+    temp_tables = qb.get_length_score_by_sample_types(pairs_list, temp_table_name, similarity_table, samples_table)
     query = 'WITH {} SELECT AVG(len) FROM {} where similarity_score >= {};'.format(temp_tables, temp_table_name, min_score)
     a = get_all_results(host, query)
     assert a is not None
@@ -319,7 +303,7 @@ def get_average_length_of_hap_similarity(host, data_version, pairs_list, min_sco
 
 def compute_sim_len_histogram(host, data_version, pairs_list, min_score):
     temp_table_name = 'score_and_len_from_hap_sim_table'
-    temp_tables = get_wgs_haplotype_similarity(host, data_version, pairs_list, temp_table_name)
+    temp_tables = qb.get_length_score_by_sample_types(host, data_version, pairs_list, temp_table_name)
     query = 'WITH {} SELECT COUNT(*), ROUND(log(len),1) as sc FROM {} where similarity_score >= {} GROUP BY sc ORDER BY sc;'.format(temp_tables, temp_table_name,
                                                                                    min_score)
 
@@ -337,16 +321,8 @@ def compute_sim_len_histogram(host, data_version, pairs_list, min_score):
 def write_all_pairwise_similarities(host, data_version, pairs_list, threshold, out_name):
     similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
     samples_table = get_table_name(host, data_version, 'SAMPLES')
-    temp_table1 = 'temp_var1 AS (SELECT sample1, analysis_method as sample1_type,sample2,' \
-                  'end_position-start_position as len, similarity_score FROM {} INNER JOIN {} ON ' \
-                  '{}.sample1={}.sample_id)'.format(similarity_table, samples_table, similarity_table, samples_table)
-    temp_table2 = 'temp_var2 AS (SELECT sample1, sample1_type,sample2, analysis_method as sample2_type, len, ' \
-                  'similarity_score FROM temp_var1 INNER JOIN {} ON ' \
-                  'temp_var1.sample2={}.sample_id)'.format(samples_table, samples_table)
-    pairs_str = get_specific_sample_types_string(pairs_list, 'sample1_type', 'sample2_type')
-    temp_table3  = 'temp_var3 as (SELECT  len , similarity_score,sample1, sample2 FROM temp_var2 where {})'.format(pairs_str)
-    query = 'WITH {},{},{} SELECT sample1, sample2, SUM(len) FROM temp_var3 ' \
-            'WHERE similarity_score>={} GROUP BY sample1, sample2;'.format(temp_table1, temp_table2, temp_table3, threshold)
+    query = qb.get_all_pairwise_similarities_query(pairs_list, threshold, similarity_table,
+                                                   samples_table)
     #out_name = '{}/similarity_length_per_comparison.csv'.format(os.getcwd())
     rows = get_all_results(host, query)
     df = pd.DataFrame.from_records(rows, columns=['sample1','sample2', 'total similarity length'])
@@ -379,35 +355,14 @@ def get_similarities_in_position(host, data_version, chromosome, position, thres
     return df
 
 
-def get_samples_filtered_by_analysis_types(host, data_version, analysis_types_list):
-    samples_table = get_table_name(host, data_version, 'SAMPLES')
-    expressions_list = ['analysis_method=\'{}\''.format(s) for s in analysis_types_list]
-    filter_string = ' OR '.join(expressions_list)
-    return 'SELECT * FROM {} WHERE {}'.format(samples_table, filter_string)
+
 
 
 def get_freq(host, data_version):
-    similarity_table = get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
-    samples_table = get_table_name(host, data_version, 'SAMPLES')
     hap_samples_table = get_table_name(host, data_version,'HAPLOTYPE_SAMPLES')
     hap_info = get_table_name(host, data_version, 'HAPLOTYPES_INFO')
-    sample_types = ['whole_genome_sequencing', 'whole_genome_sequencing']
-    wgs_samples_sub_query = get_samples_filtered_by_analysis_types(host, data_version, sample_types)
-    # step1: sub_table1 is the arg/wgs samples
-    sub_table1 = 'temp_var1 AS ({})'.format(wgs_samples_sub_query)
-    # step2: sub_table2 is hap samples table only for the arg/wgs samples
-    sub_table2 = 'temp_var2 AS (SELECT haplotype_idx,temp_var1.sample_id FROM {})'.format(
-        get_inner_join_str('temp_var1', hap_samples_table, 'sample_id', 'sample_id'))
-    # step3: sub_table3 are the mapped haplotypes
-    sub_table3 = 'temp_var3 AS (SELECT haplotype_idx FROM {} WHERE chromosome > 0)'.format(hap_info)
-    # step4: sub_table4 are the mapped haplotypes and the arg/wgs samples
-    sub_table4 = 'temp_var4 AS (SELECT sample_id,temp_var2.haplotype_idx FROM {})'.format(
-        get_inner_join_str('temp_var2', 'temp_var3', 'haplotype_idx', 'haplotype_idx'))
-    # step5: sub_table4 are the mapped haplotypes and the arg/wgs samples
-    sub_table5 = 'temp_var5 AS (SELECT haplotype_idx,count(sample_id) as freq FROM temp_var4 GROUP BY haplotype_idx)'
-    sub_table6 = 'temp_var6 AS (SELECT freq,count(haplotype_idx) FROM temp_var5 GROUP BY freq)'
-    merged_sub_tables = ', '.join([sub_table1, sub_table2, sub_table3, sub_table4, sub_table5, sub_table6])
-    query ='WITH {} SELECT freq,count FROM temp_var6 ORDER BY freq;'.format(merged_sub_tables)
+    samples_table = get_table_name(host, data_version, 'SAMPLES')
+    query = qb.get_haplotype_frequency(hap_samples_table, hap_info, samples_table)
     return get_sql_query_as_data_frame(host, query, ['freq', 'count'])
 
 
