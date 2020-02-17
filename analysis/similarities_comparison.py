@@ -6,7 +6,6 @@ genomagic_qa_repo_path = '/'.join(working_dir_path.split('/')[:-1])
 sys.path.append(genomagic_qa_repo_path)
 
 
-
 def advance_in_list(my_list, prev_element_end):
     if len(my_list) > 0:
         seg = my_list.pop(0)
@@ -153,11 +152,16 @@ def compare_dataframes_of_similarities(df1, df2):
 
 def get_subset_of_similarities(hap_sim1, sample1, sample2):
     I = ((hap_sim1['s1'] == sample1) & (hap_sim1['s2'] == sample2)) | ((hap_sim1['s2'] == sample1) & (hap_sim1['s1'] == sample2))
-    df1 = hap_sim1.loc[I,['chr', 'start', 'end']]
-    return df1.astype(int).drop_duplicates()
+    if I.sum() == 0:
+        return pd.DataFrame(columns=['chr', 'start', 'end'])
+    else:
+        df1 = hap_sim1.loc[I,['chr', 'start', 'end']]
+        return df1.astype(int).drop_duplicates()
 
 
 def get_similarities_comparison_by_samples_pair(hap_sim1, hap_sim2, samples):
+    assert set(['s1', 's2', 'chr', 'start', 'end']).issubset(hap_sim1.columns), hap_sim1.columns
+    assert set(['s1', 's2', 'chr', 'start', 'end']).issubset(hap_sim2.columns), hap_sim2.columns
     arr = []
     samples_num = len(samples)
     for i in range(samples_num):
@@ -178,6 +182,10 @@ def compute_similarity_match_for_multiple_sampels_in_df(hap_sim1, hap_sim2, samp
     hap_sim2_uniq_len = df['unique in 2'].sum()
     shared_len = df['both'].sum()
     return [hap_sim1_uniq_len, hap_sim2_uniq_len, shared_len]
+
+
+
+
 
 
 

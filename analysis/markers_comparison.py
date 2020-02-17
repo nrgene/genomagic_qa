@@ -89,7 +89,43 @@ def compute_similarities_between_samples(my_df, min_p, min_len, trim_len):
     return [similarities, match_pr, mismatch_pr]
 
 
+def compute_informative_markers(snp_markers, max_major_allele_freq, min_samples_presence):
+    df = snp_markers.loc[:, snp_markers.columns[3:]]
+    count1 = (df == 1).sum(axis=1)
+    count2 = (df == 2).sum(axis=1)
+    count_all = count1 + count2
+    informative = (1 * ((count1 / count_all) < max_major_allele_freq)
+                   + 2 * ((count2 / count_all) < max_major_allele_freq)) \
+                  * (count_all > min_samples_presence)
+    return informative
 
+
+def get_markers_of_two_samples_for_comparison(df, sample1, sample2, informative):
+    df_test = pd.DataFrame(
+        {'chr':df['chr'], 'pos': df['pos'], 'informative': informative, 'sample1': df[sample1], 'sample2': df[sample2]})
+    return df_test
+
+
+def add_snp_similarities_to_dataframe(snp_similarities, snp_markers, chr_id, informative, sample1, sample2, min_p, win_len, trim_len):
+    pair_markers = get_markers_of_two_samples_for_comparison(snp_markers, sample1, sample2, informative)
+    [snp_sim_pair, match_pr, mismatch_pr] = compute_similarities_between_samples(pair_markers, min_p, win_len, trim_len)
+    for s in snp_sim_pair:
+        snp_similarities = snp_similarities.append({'s1': sample1, 's2': sample2, 'chr':chr_id, 'start': s[0], 'end':s[1]}, ignore_index=True)
+    return snp_similarities
+
+
+def get_all_pairwise_similarities_snp(snp_markers, samples_list, chr_id, min_p, win_len, trim_len , max_major_allele_freq, min_samples_presence):
+    informative = compute_informative_markers(snp_markers, max_major_allele_freq, min_samples_presence)
+    samples_count = len(samples_list)
+    snp_similarities = pd.DataFrame(columns=['s1', 's2', 'chr','start', 'end'])
+    for i in range(samples_count):
+        #print("i={}".format(i))
+        for j in range(i + 1, samples_count):
+            sample1 = samples_list[i]
+            sample2 = samples_list[j]
+            snp_similarities = add_snp_similarities_to_dataframe(snp_similarities, snp_markers,chr_id,  informative, sample1,
+                                                                 sample2, min_p, win_len, trim_len)
+    return snp_similarities
 
 #data = [0,0,1,1,1,1,0,0,1, 1, 1, 1, 0,0,1,1,1]
 #x1 = get_sliding_window_average(data, 3)
