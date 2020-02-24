@@ -12,9 +12,6 @@ The assumption is that this is a way to optimize both hap similarity parameters 
 """
 
 
-
-
-
 def test_sim_by_data_version(host, data_version, snp_sim, samples_list):
     similarity_table = rq.get_table_name(host, data_version, 'HAPLOTYPES_SIMILARITY')
     query = 'select sample1, sample2, chromosome_id, start_position, end_position from {} where chromosome_id={} and similarity_score>={} order by start_position;'.format(similarity_table, chromosome, similarity_threshold)
