@@ -8,10 +8,10 @@ import input_preprocessing.markers_preprocessing as mp
 csv_file = '/prodslow/testing/ariel/genomagic_qa/SGU-29/out.csv'
 
 # list of ref fasta files
-ref_file_list = ['/prodslow/testing/ariel/genomagic_qa/SGU-29/williams82__ver100.fasta', '/prodslow/testing/ariel/genomagic_qa/SGU-29/williams82__ver100.fasta']
+ref_file_list = ['/prodslow/testing/ariel/genomagic_qa/SGU-29/williams82__ver100.fasta', '/prodslow/testing/ariel/genomagic_qa/SGU-29/lee__ver100.fasta']
 
-# ref names (should be the same length)
-ref_name_list = ['refA', 'refB']
+# ref names (should be the same length) - should match the ref fasta list, and be the names of the samples in the genomagic
+ref_name_list = ['williams82__ver100', 'lee__ver100']
 
 # the markers input fasta in the following format:
 # >probe_id_1
