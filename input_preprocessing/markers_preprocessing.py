@@ -1,9 +1,17 @@
 import os
 
-supplementary_alignment_flag = 2048
+#hard coded parameters regarding acceptance test for marker alignments
+#TODO: extract/modify parameters ??
 max_dist_alleles_alignment = 30
 min_score_threshold = 20
 min_sam_columns_num = 13
+
+# relevant sam flags
+#more about sam flags here: https://samtools.github.io/hts-specs/SAMv1.pdf
+sam_flag_no_match = "4"
+sam_flag_match_forward = "0"
+sam_flag_match_reverse = "16"
+sam_flag_secondary_hit = 2048
 
 def get_next_sam_line_as_list(f):
     while True:
@@ -13,12 +21,12 @@ def get_next_sam_line_as_list(f):
         if next_line[0] != '@':
             arr = next_line.split('\t')
             curr_flag = int(arr[1])
-            if curr_flag < supplementary_alignment_flag:
+            if curr_flag < sam_flag_secondary_hit:
                 return arr
 
 def handle_marker_alignment(allele1_aln, allele2_aln, out_include, out_exclude):
-    assert allele1_aln[1] == "0" or allele1_aln[1] == "16" or allele1_aln[1] == "4", allele1_aln[1]
-    assert allele2_aln[1] == "0" or allele2_aln[1] == "16" or allele2_aln[1] == "4", allele2_aln[1]
+    assert allele1_aln[1] == sam_flag_match_forward or allele1_aln[1] == sam_flag_match_reverse or allele1_aln[1] == sam_flag_no_match, allele1_aln[1]
+    assert allele2_aln[1] == sam_flag_match_forward or allele2_aln[1] == sam_flag_match_reverse or allele2_aln[1] == sam_flag_no_match, allele2_aln[1]
     same_chromosome = allele1_aln[2] == allele2_aln[2]
     seq_proximity = abs(int(allele1_aln[3]) - int(allele1_aln[3])) <= max_dist_alleles_alignment
     my_score = min(int(allele1_aln[4]), int(allele2_aln[4]))
@@ -53,7 +61,7 @@ def verify_indexing_of_fasta(ref_fasta):
 def bwa_align(reads_fasta, ref_fasta, reads_sam, threads_num):
     verify_indexing_of_fasta(ref_fasta)
     print('running BWA on genome {}'.format(ref_fasta))
-    bwa_command = 'bwa mem -t {} {} {} | grep -v @ | awk \'$2<2048\'> {}'.format(threads_num, ref_fasta, reads_fasta, reads_sam)
+    bwa_command = 'bwa mem -t {} {} {} | grep -v @ | awk \'$2<{}\'> {}'.format(threads_num, ref_fasta, reads_fasta, sam_flag_secondary_hit, reads_sam)
     os.system(bwa_command)
 
 def verify_seq_names(probe1_id, probe2_id):
@@ -63,8 +71,8 @@ def verify_seq_names(probe1_id, probe2_id):
 
 
 def verify_flags(curr_flag1, curr_flag2):
-    assert curr_flag1 == "0" or curr_flag1 == "16" or curr_flag1 == "4", curr_flag1
-    assert curr_flag2 == "0" or curr_flag2 == "16" or curr_flag2 == "4", curr_flag2
+    assert curr_flag1 == sam_flag_match_forward or curr_flag1 == sam_flag_match_reverse or curr_flag1 == sam_flag_no_match, curr_flag1
+    assert curr_flag2 == sam_flag_match_forward or curr_flag2 == sam_flag_match_reverse or curr_flag2 == sam_flag_no_match, curr_flag2
 
 
 def handle_two_sam_lines(allele1_line, allele2_line, genome_name, out_include, out_exclude):
@@ -124,7 +132,8 @@ def align_and_write_to_csv(input_fasta, ref_fasta, ref_name, csv_file, filtered_
     bwa_align(input_fasta, ref_fasta, reads_sam, threads_num)
     split_probes_to_csv_and_fasta(reads_sam, csv_file, filtered_fasta, ref_name)
 
-
+#TODO : add validation to marker id naming convention that matches the genomagic strict demands
+#TODO: add an option to add is informative
 def align_to_multiple_genomes_and_write_csv(csv_file, ref_file_list, ref_name_list, input_fasta, threads_num):
     genomes_count = len(ref_file_list)
     assert len(ref_name_list) == genomes_count
