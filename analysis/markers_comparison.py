@@ -41,18 +41,26 @@ def get_similar_regions_without_ignored_markers(seq, min_p, min_len, trim_len):
     return my_regions
 
 
+# return vector that is iff marker has selected_allele in both samples and is informative
+def get_match_by_specific_allele(sample1_markers, sample2_markers, marker_informative, selected_allele):
+    both_alleles = 3
+    allele_is_informative = (marker_informative == selected_allele) | (marker_informative == both_alleles)
+    sample1_has_allele = (sample1_markers == selected_allele) | (sample1_markers == both_alleles)
+    sample2_has_allele = (sample2_markers == selected_allele) | (sample2_markers == both_alleles)
+    return allele_is_informative & sample1_has_allele & sample2_has_allele
+
+
+# return vector that is iff both samples have the same allele and its informative
 def get_matching_alleles(my_df, include_informative):
-    n = my_df.shape[0]
-    result = np.zeros((n,), dtype=bool)
-
-    for allele in range(1, 3):
-        informative_allele = (my_df['informative'] == allele) | (my_df['informative'] == 3) | (not include_informative)
-        sample1_has_allele = (my_df['sample1'] == allele) | (my_df['sample1'] == 3)
-        sample2_has_allele = (my_df['sample2'] == allele) | (my_df['sample2'] == 3)
-        matchine_with_allele = informative_allele & sample1_has_allele & sample2_has_allele
-        result[matchine_with_allele] = True
-    return pd.Series(result)
-
+    both_alleles = 3
+    marker_informative = my_df['informative']
+    if not include_informative:
+        ind_not_full_informative = marker_informative != both_alleles
+        marker_informative[ind_not_full_informative] = both_alleles
+    match_by_allele1 = get_match_by_specific_allele(my_df['sample1'], my_df['sample2'], marker_informative, 1)
+    match_by_allele2 = get_match_by_specific_allele(my_df['sample1'], my_df['sample2'], marker_informative, 2)
+    matching_alleles = match_by_allele1 | match_by_allele2
+    return matching_alleles
 
 def get_mismatching_alleles(my_df, include_informative):
     conflicting_markers = ((my_df['sample1'] == 1) & (my_df['sample2'] == 2)) | ((my_df['sample1'] == 2) & (my_df['sample2'] == 1))
