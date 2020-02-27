@@ -36,6 +36,8 @@ trim_len = 0
 min_samples_presence = 2
 max_major_allele_freq = 0.8
 samples_list = samples.split(',')
+locations="1,2,3,4,5"
+
 
 data_version = 'public_soy_v1_14' # should not afect the similarity
 snp_markers = api.get_snp_markers_as_dataframe(api_server, data_version, samples, chromosome, max_hap_num)
