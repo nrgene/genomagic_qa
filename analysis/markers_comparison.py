@@ -121,18 +121,25 @@ def add_snp_similarities_to_dataframe(snp_similarities, snp_markers, chr_id, inf
         snp_similarities = snp_similarities.append({'s1': sample1, 's2': sample2, 'chr':chr_id, 'start': s[0], 'end':s[1]}, ignore_index=True)
     return snp_similarities
 
-
 def get_all_pairwise_similarities_snp(snp_markers, samples_list, chr_id, min_p, win_len, trim_len , max_major_allele_freq, min_samples_presence):
     informative = compute_informative_markers(snp_markers, max_major_allele_freq, min_samples_presence)
     samples_count = len(samples_list)
     snp_similarities = pd.DataFrame(columns=['s1', 's2', 'chr','start', 'end'])
     for i in range(samples_count):
-        #print("i={}".format(i))
         for j in range(i + 1, samples_count):
             sample1 = samples_list[i]
             sample2 = samples_list[j]
             snp_similarities = add_snp_similarities_to_dataframe(snp_similarities, snp_markers,chr_id,  informative, sample1,
                                                                  sample2, min_p, win_len, trim_len)
+    return snp_similarities
+
+
+def get_all_pairwise_similarities_snp_mutliple_chromosomes(snp_markers, samples_list, chromosome_list, min_p, win_len, trim_len , max_major_allele_freq, min_samples_presence):
+    snp_similarities = pd.DataFrame(columns=['s1', 's2', 'chr', 'start', 'end'])
+    for chr_id in chromosome_list:
+        print("curr chr = {}".format(chr_id))
+        curr_sim = get_all_pairwise_similarities_snp(snp_markers, samples_list, chr_id, min_p, win_len, trim_len , max_major_allele_freq, min_samples_presence)
+    snp_similarities = snp_similarities.append(curr_sim)
     return snp_similarities
 
 #data = [0,0,1,1,1,1,0,0,1, 1, 1, 1, 0,0,1,1,1]
