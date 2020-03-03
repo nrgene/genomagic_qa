@@ -15,13 +15,15 @@ max_hap_num = 1000000
 data_version = 'public_soy_v1_14'
 host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
 samples = 'lee__ver100,pi483463__ver100,williams82__ver100,fc33243_anderson__ver100,pi180501_strain_no__18__ver100,pi240664_bilomi_no__3__ver100,pi266806c_no_4__ver100,pi322692_max_c_p1159a8__ver100,pi360957_karafuto_no__1__ver100,pi361087_medias_23__ver100,pi361093_novosadska_br__1__ver100,pi437265d_dobruzanca_d__ver100,pi438335_sao_196_c__ver100,pi468908__ver100,pi497964a_i_c__9461__ver100,pi507180_rikuu_21__ver100,pi518668_tn_4_86__ver100,pi548193_t201__ver100,pi548360_korean__ver100,pi548364_macoupin__ver100,pi548447_cherokee__ver100,pi548452_dixie__ver100,pi548490_tanner__ver100,pi548520_preston__ver100,pi548561_hodgson__ver100,pi548619_sparks__ver100,pi549041a_zyd_2709__ver100,pi559932_manokin__ver100,pi567426_bai_huang_dou__ver100,pi567558_liu_shi_ri_jin_huang_da_dou__ver100,pi567604a_xin_huang_dou__ver100,pi567788_bienville__ver100,pi578309_i_64__ver100,pi592523_glacier__ver100'
-similarity_threshold = 0.85
+similarity_threshold = 0.8
 max_major_allele_freq = 0.8
 min_samples_presence = 2
 min_p = 1
 win_len = 20
 trim_len = 0
-
+print("similarity_threshold={}".format(similarity_threshold))
+print("informative parameters: max_major_allele_freq={}, min_samples_presence={}".format(max_major_allele_freq, min_samples_presence))
+print("sliding window parameters: min_p={}, win_len={}, trim_len={}".format(min_p, win_len, trim_len))
 
 """
 In this script we are extracting snp data from wgs samples, and then generate similarities based on these snps
