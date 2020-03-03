@@ -138,8 +138,9 @@ def get_all_pairwise_similarities_snp_mutliple_chromosomes(snp_markers, samples_
     snp_similarities = pd.DataFrame(columns=['s1', 's2', 'chr', 'start', 'end'])
     for chr_id in chromosome_list:
         print("curr chr = {}".format(chr_id))
-        curr_sim = get_all_pairwise_similarities_snp(snp_markers, samples_list, chr_id, min_p, win_len, trim_len , max_major_allele_freq, min_samples_presence)
-    snp_similarities = snp_similarities.append(curr_sim)
+        curr_snp_markers = snp_markers[snp_markers['chr']==chr_id].reset_index(drop=True)
+        curr_sim = get_all_pairwise_similarities_snp(curr_snp_markers, samples_list, chr_id, min_p, win_len, trim_len , max_major_allele_freq, min_samples_presence)
+    snp_similarities = snp_similarities.append(curr_sim, ignore_index=True)
     return snp_similarities
 
 #data = [0,0,1,1,1,1,0,0,1, 1, 1, 1, 0,0,1,1,1]
