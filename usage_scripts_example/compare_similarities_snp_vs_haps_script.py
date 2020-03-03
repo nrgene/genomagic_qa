@@ -9,7 +9,8 @@ import analysis.similarities_comparison as sc
 
 # hard coded parameters
 api_server='api-dev.nrgene.local'
-locations="1,2,3,4,5"
+#locations="1,2,3,4,5"
+locations="1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"
 max_hap_num = 1000000
 data_version = 'public_soy_v1_14'
 host='rndlab-genomagic-redshift.cl6ox83ermwm.us-east-1.redshift.amazonaws.com'
@@ -91,28 +92,28 @@ data_version = 'public_soy_v1_14'
 [only_hap, only_snp, both] = compare_sim_all_chr(samples_list, locations, host, data_version, similarity_threshold, snp_markers,
                         max_major_allele_freq, min_samples_presence, min_p, win_len, trim_len)
 total_len = only_hap + only_snp + both
-print('maxHaplotypeFrequency =  1.0')
+print('maxHaplotypeFrequency =  1.0: total_len = {} Mb'.format(int(total_len/1000000)))
 print('dv = {} , jacard = {}, only hap = {} only snp = {}'.format(data_version, both/total_len, only_hap/total_len, only_snp/total_len))
 
 data_version = 'public_soy_test_remove_freq'
 [only_hap, only_snp, both] = compare_sim_all_chr(samples_list, locations, host, data_version, similarity_threshold, snp_markers,
                         max_major_allele_freq, min_samples_presence, min_p, win_len, trim_len)
 total_len = only_hap + only_snp + both
-print('maxHaplotypeFrequency =  0.9')
+print('maxHaplotypeFrequency =  0.9: total_len = {} Mb'.format(int(total_len/1000000)))
 print('dv = {} , jacard = {}, only hap = {} only snp = {}'.format(data_version, both/total_len, only_hap/total_len, only_snp/total_len))
 
 data_version = 'public_soy_test_remove_freq_3'
 [only_hap, only_snp, both] = compare_sim_all_chr(samples_list, locations, host, data_version, similarity_threshold, snp_markers,
                         max_major_allele_freq, min_samples_presence, min_p, win_len, trim_len)
 total_len = only_hap + only_snp + both
-print('maxHaplotypeFrequency =  0.8')
+print('maxHaplotypeFrequency =  0.8: total_len = {} Mb'.format(int(total_len/1000000)))
 print('dv = {} , jacard = {}, only hap = {} only snp = {}'.format(data_version, both/total_len, only_hap/total_len, only_snp/total_len))
 
 data_version = 'public_soy_test_remove_freq_2'
 [only_hap, only_snp, both] = compare_sim_all_chr(samples_list, locations, host, data_version, similarity_threshold, snp_markers,
                         max_major_allele_freq, min_samples_presence, min_p, win_len, trim_len)
 total_len = only_hap + only_snp + both
-print('maxHaplotypeFrequency =  0.6')
+print('maxHaplotypeFrequency =  0.6: total_len = {} Mb'.format(int(total_len/1000000)))
 print('dv = {} , jacard = {}, only hap = {} only snp = {}'.format(data_version, both/total_len, only_hap/total_len, only_snp/total_len))
 
 
